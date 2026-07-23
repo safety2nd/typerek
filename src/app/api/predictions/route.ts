@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const fixtureId = Number(body?.fixture_id);
   const home = Number(body?.home_score);
   const away = Number(body?.away_score);
-  if (!Number.isInteger(fixtureId) || !Number.isInteger(home) || !Number.isInteger(away) || home < 0 || away < 0) {
+  if (!Number.isInteger(fixtureId) || !Number.isInteger(home) || !Number.isInteger(away) || home < 0 || away < 0 || home > 50 || away > 50) {
     return NextResponse.json({ error: "Nieprawidłowe dane" }, { status: 400 });
   }
 

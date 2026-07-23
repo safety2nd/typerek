@@ -19,7 +19,7 @@ export default async function LoginPage({
 
     const email = await getEmailForUsername(username);
     if (!email) {
-      redirect(`/login?error=${encodeURIComponent("Nie znaleziono użytkownika")}`);
+      redirect(`/login?error=${encodeURIComponent("Nieprawidłowe dane logowania")}`);
     }
 
     const supabase = await createClient();

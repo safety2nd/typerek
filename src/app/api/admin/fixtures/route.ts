@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth";
+import { EKSTRAKLASA_TEAMS } from "@/lib/teams";
+
+const TEAM_SET = new Set<string>(EKSTRAKLASA_TEAMS);
 
 export async function POST(request: Request) {
   await requireAdmin();
@@ -15,6 +18,13 @@ export async function POST(request: Request) {
   }
   if (homeTeam === awayTeam) {
     return NextResponse.json({ error: "Gospodarz i gość muszą być różni" }, { status: 400 });
+  }
+  if (!TEAM_SET.has(homeTeam) || !TEAM_SET.has(awayTeam)) {
+    return NextResponse.json({ error: "Nieznana drużyna" }, { status: 400 });
+  }
+  const parsed = new Date(utcDate);
+  if (isNaN(parsed.getTime())) {
+    return NextResponse.json({ error: "Nieprawidłowa data" }, { status: 400 });
   }
 
   const supabase = createServiceClient();

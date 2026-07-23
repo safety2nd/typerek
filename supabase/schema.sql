@@ -90,11 +90,15 @@ create policy "audit_log: admin read" on public.audit_log
     exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
   );
 
--- profiles: everyone logged in can read; users can update their own row (but not is_admin)
+-- profiles: everyone logged in can read; users can update only their username (NOT is_admin)
 create policy "profiles: read" on public.profiles
   for select using (auth.role() = 'authenticated');
-create policy "profiles: update own" on public.profiles
+create policy "profiles: update own username" on public.profiles
   for update using (auth.uid() = id) with check (auth.uid() = id);
+
+-- Revoke broad update; only allow updating username column
+revoke update on public.profiles from authenticated;
+grant update (username) on public.profiles to authenticated;
 
 -- fixtures: readable by any authenticated user
 create policy "fixtures: read" on public.fixtures
@@ -109,6 +113,12 @@ create policy "predictions: update own" on public.predictions
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "predictions: delete own" on public.predictions
   for delete using (auth.uid() = user_id);
+
+-- Restrict column-level: users can only set scores, never points
+revoke insert on public.predictions from authenticated;
+grant insert (user_id, fixture_id, home_score, away_score) on public.predictions to authenticated;
+revoke update on public.predictions from authenticated;
+grant update (home_score, away_score) on public.predictions to authenticated;
 
 -- =========================================================
 -- updated_at triggers
