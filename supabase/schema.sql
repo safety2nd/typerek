@@ -59,11 +59,36 @@ create index if not exists predictions_fixture_idx on public.predictions (fixtur
 create index if not exists predictions_user_idx on public.predictions (user_id);
 
 -- =========================================================
+-- audit_log — tracks all changes to predictions & fixtures
+-- =========================================================
+create table if not exists public.audit_log (
+  id           bigserial primary key,
+  table_name   text not null,
+  action       text not null,             -- INSERT | UPDATE | DELETE
+  record_id    text not null,             -- pk of the changed row
+  changed_by   uuid,                       -- auth.uid() of the actor
+  changed_at   timestamptz not null default now(),
+  old_values   jsonb,
+  new_values   jsonb
+);
+
+create index if not exists audit_log_table_idx on public.audit_log (table_name);
+create index if not exists audit_log_record_idx on public.audit_log (record_id);
+create index if not exists audit_log_changed_at_idx on public.audit_log (changed_at desc);
+
+-- =========================================================
 -- RLS
 -- =========================================================
 alter table public.profiles enable row level security;
 alter table public.fixtures enable row level security;
 alter table public.predictions enable row level security;
+alter table public.audit_log enable row level security;
+
+-- audit_log: readable by admins only, writable by anyone authenticated (via trigger)
+create policy "audit_log: admin read" on public.audit_log
+  for select using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
 
 -- profiles: everyone logged in can read; users can update their own row (but not is_admin)
 create policy "profiles: read" on public.profiles
@@ -102,6 +127,63 @@ create trigger trg_fixtures_updated before update on public.fixtures
 drop trigger if exists trg_predictions_updated on public.predictions;
 create trigger trg_predictions_updated before update on public.predictions
   for each row execute function public.touch_updated_at();
+
+-- =========================================================
+-- audit triggers — log all inserts/updates/deletes
+-- =========================================================
+create or replace function public.audit_predictions()
+returns trigger language plpgsql security definer as $$
+begin
+  if tg_op = 'DELETE' then
+    insert into public.audit_log (table_name, action, record_id, changed_by, old_values)
+    values ('predictions', 'DELETE', old.id::text, auth.uid(),
+      jsonb_build_object('user_id', old.user_id, 'fixture_id', old.fixture_id, 'home_score', old.home_score, 'away_score', old.away_score, 'points', old.points));
+    return old;
+  elsif tg_op = 'UPDATE' then
+    insert into public.audit_log (table_name, action, record_id, changed_by, old_values, new_values)
+    values ('predictions', 'UPDATE', new.id::text, auth.uid(),
+      jsonb_build_object('home_score', old.home_score, 'away_score', old.away_score, 'points', old.points),
+      jsonb_build_object('home_score', new.home_score, 'away_score', new.away_score, 'points', new.points));
+    return new;
+  elsif tg_op = 'INSERT' then
+    insert into public.audit_log (table_name, action, record_id, changed_by, new_values)
+    values ('predictions', 'INSERT', new.id::text, auth.uid(),
+      jsonb_build_object('user_id', new.user_id, 'fixture_id', new.fixture_id, 'home_score', new.home_score, 'away_score', new.away_score));
+    return new;
+  end if;
+  return null;
+end $$;
+
+drop trigger if exists trg_audit_predictions on public.predictions;
+create trigger trg_audit_predictions after insert or update or delete on public.predictions
+  for each row execute function public.audit_predictions();
+
+create or replace function public.audit_fixtures()
+returns trigger language plpgsql security definer as $$
+begin
+  if tg_op = 'DELETE' then
+    insert into public.audit_log (table_name, action, record_id, changed_by, old_values)
+    values ('fixtures', 'DELETE', old.id::text, auth.uid(),
+      jsonb_build_object('home_team', old.home_team, 'away_team', old.away_team, 'home_score', old.home_score, 'away_score', old.away_score, 'status', old.status));
+    return old;
+  elsif tg_op = 'UPDATE' then
+    insert into public.audit_log (table_name, action, record_id, changed_by, old_values, new_values)
+    values ('fixtures', 'UPDATE', new.id::text, auth.uid(),
+      jsonb_build_object('home_score', old.home_score, 'away_score', old.away_score, 'status', old.status),
+      jsonb_build_object('home_score', new.home_score, 'away_score', new.away_score, 'status', new.status));
+    return new;
+  elsif tg_op = 'INSERT' then
+    insert into public.audit_log (table_name, action, record_id, changed_by, new_values)
+    values ('fixtures', 'INSERT', new.id::text, auth.uid(),
+      jsonb_build_object('home_team', new.home_team, 'away_team', new.away_team, 'utc_date', new.utc_date, 'status', new.status));
+    return new;
+  end if;
+  return null;
+end $$;
+
+drop trigger if exists trg_audit_fixtures on public.fixtures;
+create trigger trg_audit_fixtures after insert or update or delete on public.fixtures
+  for each row execute function public.audit_fixtures();
 
 -- =========================================================
 -- view: leaderboard (computed from scored predictions)

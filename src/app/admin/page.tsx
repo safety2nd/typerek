@@ -21,6 +21,13 @@ export default async function AdminPage() {
           <div className="font-semibold">Mecze i wyniki</div>
           <div className="text-sm text-zinc-500">Dodawaj mecze i edytuj wyniki.</div>
         </Link>
+        <Link
+          href="/admin/audit"
+          className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+        >
+          <div className="font-semibold">Dziennik zmian</div>
+          <div className="text-sm text-zinc-500">Historia zmian typów i wyników.</div>
+        </Link>
       </div>
     </div>
   );
