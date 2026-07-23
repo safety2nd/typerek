@@ -78,7 +78,6 @@ function FixtureEditRow({ fixture }: { fixture: Fixture }) {
         className="rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1"
       >
         <option value="SCHEDULED">Zaplanowany</option>
-        <option value="IN_PLAY">W trakcie</option>
         <option value="FINISHED">Zakończony</option>
       </select>
       <button
