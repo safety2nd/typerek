@@ -113,15 +113,34 @@ create policy "auth_log: admin read" on public.auth_log
     exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
   );
 
--- profiles: everyone logged in can read; users can update only their username (NOT is_admin)
+-- profiles: everyone logged in can read; users can update their own row
 create policy "profiles: read" on public.profiles
   for select using (auth.role() = 'authenticated');
-create policy "profiles: update own username" on public.profiles
+create policy "profiles: update own" on public.profiles
   for update using (auth.uid() = id) with check (auth.uid() = id);
 
--- Revoke broad update; only allow updating username column
-revoke update on public.profiles from authenticated;
-grant update (username) on public.profiles to authenticated;
+-- Block non-service roles from changing is_admin (prevent privilege escalation)
+create or replace function public.block_admin_tamper()
+returns trigger language plpgsql security definer as $$
+begin
+  if current_setting('role') = 'authenticated' then
+    if tg_op = 'INSERT' and new.is_admin = true then
+      raise exception 'Nie możesz nadać sobie admina';
+    end if;
+    if tg_op = 'UPDATE' and new.is_admin is distinct from old.is_admin then
+      raise exception 'Nie możesz zmienić flagi admina';
+    end if;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_block_admin_insert on public.profiles;
+create trigger trg_block_admin_insert before insert on public.profiles
+  for each row execute function public.block_admin_tamper();
+
+drop trigger if exists trg_block_admin_update on public.profiles;
+create trigger trg_block_admin_update before update on public.profiles
+  for each row execute function public.block_admin_tamper();
 
 -- fixtures: readable by any authenticated user
 create policy "fixtures: read" on public.fixtures
@@ -137,11 +156,31 @@ create policy "predictions: update own" on public.predictions
 create policy "predictions: delete own" on public.predictions
   for delete using (auth.uid() = user_id);
 
--- Restrict column-level: users can only set scores, never points
-revoke insert on public.predictions from authenticated;
-grant insert (user_id, fixture_id, home_score, away_score) on public.predictions to authenticated;
-revoke update on public.predictions from authenticated;
-grant update (home_score, away_score) on public.predictions to authenticated;
+-- Block non-service roles from setting points directly (prevent score inflation)
+-- score_fixture is security definer so it bypasses this check
+create or replace function public.block_points_tamper()
+returns trigger language plpgsql security definer as $$
+begin
+  -- Only allow points to be set by service role (which bypasses RLS)
+  -- authenticated users must NOT set points
+  if current_setting('role') = 'authenticated' then
+    if tg_op = 'INSERT' and new.points is not null then
+      raise exception 'Nie możesz ustawić punktów';
+    end if;
+    if tg_op = 'UPDATE' and new.points is distinct from old.points then
+      raise exception 'Nie możesz zmienić punktów';
+    end if;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_block_points_insert on public.predictions;
+create trigger trg_block_points_insert before insert on public.predictions
+  for each row execute function public.block_points_tamper();
+
+drop trigger if exists trg_block_points_update on public.predictions;
+create trigger trg_block_points_update before update on public.predictions
+  for each row execute function public.block_points_tamper();
 
 -- =========================================================
 -- updated_at triggers
