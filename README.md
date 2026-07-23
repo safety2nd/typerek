@@ -9,15 +9,14 @@ Ekstraklasa score-prediction pool for you and your buddies. Built with Next.js 1
 - Scoring: **2 pts** for exact score, **1 pt** for correct outcome (home win / draw / away win), **0** otherwise.
 - Global predictions list + live standings leaderboard.
 - Admin can edit fixture results (fix mistakes), add/remove users, and toggle admins.
-- Fixtures auto-sync daily from [TheSportsDB](https://www.thesportsdb.com/) (free, no key, Ekstraklasa league 4422).
+- Fixtures entered manually by admin from a hardcoded list of 18 Ekstraklasa teams.
 - Scoring runs automatically in Postgres when a fixture is marked FINISHED.
 
 ## Stack
 
 - **Frontend**: Next.js 16 (app router, proxy auth), Tailwind CSS v4.
 - **Backend/DB**: Supabase (Postgres + Auth + RLS).
-- **Hosting**: Vercel (free) + Vercel Cron for daily fixture sync.
-- **Fixtures API**: TheSportsDB (free tier, no key needed, Ekstraklasa league ID 4422).
+- **Hosting**: Vercel (free).
 
 ## Setup
 
@@ -30,11 +29,7 @@ Ekstraklasa score-prediction pool for you and your buddies. Built with Next.js 1
    - `anon public` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`
 
-### 2. TheSportsDB
-
-No signup needed — the app uses TheSportsDB's free public API (key `3`), which covers the current Ekstraklasa season (league 4422).
-
-### 3. Local env
+### 2. Local env
 
 ```bash
 cp .env.example .env.local
@@ -46,7 +41,7 @@ npm install
 npm run dev
 ```
 
-### 4. Create the admin user
+### 3. Create the admin user
 
 ```bash
 node scripts/seed-admin.mjs admin "super-secret-pw"
@@ -54,7 +49,7 @@ node scripts/seed-admin.mjs admin "super-secret-pw"
 
 Then log in at `/login` with the username `admin`.
 
-### 5. Add buddies
+### 4. Add buddies
 
 In the app → **Admin → Użytkownicy → Dodaj użytkownika**. Each buddy gets their own username + password. Log in with the username (no email needed).
 
@@ -63,12 +58,7 @@ In the app → **Admin → Użytkownicy → Dodaj użytkownika**. Each buddy get
 1. Push the repo to GitHub.
 2. Import the project in Vercel.
 3. Add all env vars from `.env.example` (set `NEXT_PUBLIC_APP_URL` to your Vercel URL).
-4. Deploy. Vercel Cron (configured in `vercel.json`) hits `/api/cron/sync-fixtures?secret=$CRON_SECRET` daily at 06:00 UTC.
-
-> **No cron?** Run the sync manually from **Admin → Fixtures → Sync now**, or hit the endpoint with any scheduler:
-> ```bash
-> curl -X POST "https://your-app.vercel.app/api/cron/sync-fixtures?secret=$CRON_SECRET"
-> ```
+4. Deploy.
 
 ## Scoring
 
@@ -86,24 +76,22 @@ src/
     admin/
       page.tsx            # Admin hub (admin only)
       users/              # Add / remove users
-      fixtures/           # Edit results, sync fixtures
+      fixtures/           # Add fixtures, edit results
     api/
       predictions/        # POST a prediction
       admin/users/        # Admin user management
+      admin/fixtures/     # Add fixture
       admin/fixtures/[id] # Edit fixture result
-      admin/sync/         # Authenticated sync trigger
-      cron/sync-fixtures/ # Cron-triggered sync (secret-protected)
       health/             # Health check
   components/             # UI components
   lib/
     supabase/             # Supabase clients (server + browser)
     auth.ts               # Session helpers
-    fixtures.ts           # TheSportsDB sync (Ekstraklasa league 4422)
+    teams.ts              # Hardcoded 18 Ekstraklasa teams
     scoring.ts            # Client-side scoring helpers
     queries.ts            # Data access
     types.ts
-  proxy.ts                # Auth guard (all routes except /login + cron/health)
+  proxy.ts                # Auth guard (all routes except /login + health)
 supabase/schema.sql       # Run this once in Supabase
 scripts/seed-admin.mjs    # Create the first admin user
-vercel.json               # Cron schedule
 ```

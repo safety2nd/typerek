@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { EKSTRAKLASA_TEAMS } from "@/lib/teams";
 
 export function AddFixtureForm({ onAdded }: { onAdded?: () => void }) {
   const [homeTeam, setHomeTeam] = useState("");
@@ -20,14 +21,18 @@ export function AddFixtureForm({ onAdded }: { onAdded?: () => void }) {
       setErr("Wypełnij wszystkie pola");
       return;
     }
+    if (homeTeam === awayTeam) {
+      setErr("Gospodarz i gość muszą być różni");
+      return;
+    }
     const utc = new Date(`${date}T${time}:00`).toISOString();
     startTransition(async () => {
       const res = await fetch("/api/admin/fixtures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          home_team: homeTeam.trim(),
-          away_team: awayTeam.trim(),
+          home_team: homeTeam,
+          away_team: awayTeam,
           utc_date: utc,
           matchday: Number(round) || null,
         }),
@@ -38,7 +43,6 @@ export function AddFixtureForm({ onAdded }: { onAdded?: () => void }) {
         return;
       }
       setMsg(`Dodano: ${homeTeam} v ${awayTeam}`);
-      setHomeTeam("");
       setAwayTeam("");
       onAdded?.();
     });
@@ -48,21 +52,33 @@ export function AddFixtureForm({ onAdded }: { onAdded?: () => void }) {
     <form onSubmit={submit} className="flex flex-wrap gap-2 items-end">
       <div>
         <label className="block text-xs mb-1">Gospodarz</label>
-        <input
+        <select
           value={homeTeam}
           onChange={(e) => setHomeTeam(e.target.value)}
-          className="rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1 w-40"
-          placeholder="np. Legia Warszawa"
-        />
+          className="rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1 w-48"
+        >
+          <option value="">— wybierz —</option>
+          {EKSTRAKLASA_TEAMS.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
       </div>
       <div>
         <label className="block text-xs mb-1">Gość</label>
-        <input
+        <select
           value={awayTeam}
           onChange={(e) => setAwayTeam(e.target.value)}
-          className="rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1 w-40"
-          placeholder="np. Lech Poznań"
-        />
+          className="rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1 w-48"
+        >
+          <option value="">— wybierz —</option>
+          {EKSTRAKLASA_TEAMS.filter((t) => t !== homeTeam).map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
       </div>
       <div>
         <label className="block text-xs mb-1">Data</label>
