@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { NavBar } from "@/components/nav-bar";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
         <footer className="text-center text-xs text-zinc-500 py-6">
           Liga Garażowa imienia Marka Anchimiuka &middot; typowanie Ekstraklasy &middot; tylko dla predatorów
         </footer>
+        <Analytics />
       </body>
     </html>
   );
