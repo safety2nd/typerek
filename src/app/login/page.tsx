@@ -1,6 +1,26 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { getEmailForUsername } from "@/lib/queries";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+
+async function logAuthEvent(
+  event: "LOGIN" | "LOGIN_FAILED" | "LOGOUT",
+  username: string | null,
+  userId: string | null,
+) {
+  const headerList = await headers();
+  const ip = headerList.get("x-forwarded-for") ?? headerList.get("x-real-ip") ?? null;
+  const ua = headerList.get("user-agent") ?? null;
+  const service = createServiceClient();
+  await service.from("auth_log").insert({
+    user_id: userId,
+    username,
+    event,
+    ip_address: ip,
+    user_agent: ua,
+  });
+}
 
 export default async function LoginPage({
   searchParams,
@@ -19,14 +39,18 @@ export default async function LoginPage({
 
     const email = await getEmailForUsername(username);
     if (!email) {
+      await logAuthEvent("LOGIN_FAILED", username, null);
       redirect(`/login?error=${encodeURIComponent("Nieprawidłowe dane logowania")}`);
     }
 
     const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.user) {
+      await logAuthEvent("LOGIN_FAILED", username, null);
       redirect(`/login?error=${encodeURIComponent("Nieprawidłowe dane logowania")}`);
     }
+
+    await logAuthEvent("LOGIN", username, data.user.id);
     redirect("/");
   }
 

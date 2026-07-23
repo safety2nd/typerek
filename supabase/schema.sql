@@ -77,15 +77,38 @@ create index if not exists audit_log_record_idx on public.audit_log (record_id);
 create index if not exists audit_log_changed_at_idx on public.audit_log (changed_at desc);
 
 -- =========================================================
+-- auth_log — tracks login/logout events
+-- =========================================================
+create table if not exists public.auth_log (
+  id           bigserial primary key,
+  user_id      uuid,
+  username     text,
+  event        text not null,              -- LOGIN | LOGOUT | LOGIN_FAILED
+  ip_address   text,
+  user_agent   text,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists auth_log_user_idx on public.auth_log (user_id);
+create index if not exists auth_log_created_idx on public.auth_log (created_at desc);
+
+-- =========================================================
 -- RLS
 -- =========================================================
 alter table public.profiles enable row level security;
 alter table public.fixtures enable row level security;
 alter table public.predictions enable row level security;
 alter table public.audit_log enable row level security;
+alter table public.auth_log enable row level security;
 
 -- audit_log: readable by admins only, writable by anyone authenticated (via trigger)
 create policy "audit_log: admin read" on public.audit_log
+  for select using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+-- auth_log: readable by admins only
+create policy "auth_log: admin read" on public.auth_log
   for select using (
     exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
   );
