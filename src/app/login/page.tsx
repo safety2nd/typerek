@@ -32,7 +32,7 @@ export default async function LoginPage({
 
   return (
     <div className="max-w-sm mx-auto mt-16">
-      <h1 className="text-2xl font-bold mb-6 text-center">Garage League</h1>
+      <h1 className="text-2xl font-bold mb-6 text-center">Liga Garażowa imienia Marka Anchimiuka</h1>
       <form action={signIn} className="flex flex-col gap-4">
         <div>
           <label htmlFor="username" className="block text-sm mb-1">

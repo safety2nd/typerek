@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Garage League",
-  description: "Typowanie wyników Ekstraklasy dla ligi garażowej.",
+  title: "Liga Garażowa imienia Marka Anchimiuka",
+  description: "Typowanie wyników Ekstraklasy.",
 };
 
 export default function RootLayout({
@@ -32,7 +32,7 @@ export default function RootLayout({
         <NavBar />
         <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-8">{children}</main>
         <footer className="text-center text-xs text-zinc-500 py-6">
-          Garage League &middot; typowanie Ekstraklasy &middot; tylko dla predatorów
+          Liga Garażowa imienia Marka Anchimiuka &middot; typowanie Ekstraklasy &middot; tylko dla predatorów
         </footer>
       </body>
     </html>
