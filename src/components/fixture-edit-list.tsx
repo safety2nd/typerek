@@ -25,16 +25,18 @@ function FixtureEditRow({ fixture }: { fixture: Fixture }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  function save() {
+  function save(overrideStatus?: Fixture["status"]) {
     setMsg(null);
     setErr(null);
     const h = home === "" ? null : Number(home);
     const a = away === "" ? null : Number(away);
+    const finalStatus = overrideStatus ?? status;
+    if (overrideStatus) setStatus(overrideStatus);
     startTransition(async () => {
       const res = await fetch(`/api/admin/fixtures/${fixture.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ home_score: h, away_score: a, status }),
+        body: JSON.stringify({ home_score: h, away_score: a, status: finalStatus }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -82,11 +84,18 @@ function FixtureEditRow({ fixture }: { fixture: Fixture }) {
         <option value="CANCELLED">Anulowany</option>
       </select>
       <button
-        onClick={save}
+        onClick={() => save("FINISHED")}
+        disabled={pending || (home === "" || away === "")}
+        className="rounded bg-green-600 text-white px-3 py-1 text-xs font-medium hover:opacity-90 disabled:opacity-50"
+      >
+        {pending ? "…" : "Zapisz wynik"}
+      </button>
+      <button
+        onClick={() => save()}
         disabled={pending}
         className="rounded bg-foreground text-background px-3 py-1 text-xs font-medium hover:opacity-90 disabled:opacity-50"
       >
-        {pending ? "…" : "Zapisz"}
+        Zapisz
       </button>
       {msg ? <span className="text-xs text-green-500">{msg}</span> : null}
       {err ? <span className="text-xs text-red-500">{err}</span> : null}
