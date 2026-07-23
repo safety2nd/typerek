@@ -1,122 +1,111 @@
 import { createServiceClient } from "./supabase/server";
 import type { Fixture, FixtureStatus } from "./types";
 
-// API-Football (api-sports.io) — Ekstraklasa is league id 106.
-// Free tier: 100 requests/day, enough for one daily sync.
-const EKSTRAKLASA_LEAGUE_ID = 106;
+// TheSportsDB — Polish Ekstraklasa league id.
+// Free tier (api key "3") includes the current season and upcoming fixtures.
+const EKSTRAKLASA_LEAGUE_ID = 4422;
+const API_KEY = "3";
 
-// API-Football status short codes -> our internal status
-//   NS = Not Started, TBD = To Be Determined
-//   1H/2H/HT/ET/BT/LIVE/P = In Play
-//   FT/AET/PEN/PST/CANC/ABD/AWD/APO = Finished/decided
-function mapStatus(short: string): FixtureStatus {
-  if (["NS", "TBD", "PST"].includes(short)) return "SCHEDULED";
-  if (["1H", "2H", "HT", "ET", "BT", "LIVE", "P", "INT"].includes(short)) return "IN_PLAY";
-  return "FINISHED";
+interface TSDBEvent {
+  idEvent: string;
+  strTimestamp: string | null;
+  dateEvent: string;
+  strTime: string | null;
+  strHomeTeam: string;
+  strAwayTeam: string;
+  strHomeTeamBadge: string | null;
+  strAwayTeamBadge: string | null;
+  intHomeScore: string | number | null;
+  intAwayScore: string | number | null;
+  intRound: string | null;
+  strSeason: string | null;
+  strStatus: string | null;
+  strPostponed: string | null;
 }
 
-interface APIFixture {
-  fixture: {
-    id: number;
-    date: string;
-    status: { short: string };
-  };
-  league: {
-    round: string | null;
-    season: string;
-    name: string;
-  };
-  teams: {
-    home: { id: number; name: string; logo: string | null };
-    away: { id: number; name: string; logo: string | null };
-  };
-  goals: { home: number | null; away: number | null };
+interface TSDBResponse {
+  events: TSDBEvent[] | null;
 }
 
-interface APIResponse {
-  response: APIFixture[];
-  errors: unknown;
+function mapStatus(e: TSDBEvent): FixtureStatus {
+  if (e.strPostponed === "yes") return "SCHEDULED";
+  const s = (e.strStatus ?? "").toUpperCase();
+  // FT = Full Time, AET = After Extra Time, PEN = Penalties
+  if (["FT", "AET", "PEN", "AWD", "CANC", "ABD", "APO"].includes(s)) return "FINISHED";
+  // NS = Not Started, TBD = To Be Determined
+  if (["NS", "TBD", "PST"].includes(s)) return "SCHEDULED";
+  // If scores are present, treat as finished; otherwise scheduled
+  if (e.intHomeScore != null && e.intAwayScore != null) return "FINISHED";
+  // Match started but no final score yet
+  if (s && !["NS", "TBD"].includes(s)) return "IN_PLAY";
+  return "SCHEDULED";
 }
 
-function roundName(raw: string | null): string | null {
-  if (!raw) return null;
-  // API-Football: "Regular Season - 3" -> "Kolejka 3"
-  const m = raw.match(/Regular Season\s*-\s*(\d+)/i);
-  if (m) return `Kolejka ${m[1]}`;
-  return raw;
+function toIsoDate(e: TSDBEvent): string {
+  if (e.strTimestamp) return e.strTimestamp;
+  const date = e.dateEvent;
+  const time = e.strTime ?? "00:00:00";
+  return `${date}T${time}Z`;
 }
 
-function matchdayFromRound(raw: string | null): number | null {
-  if (!raw) return null;
-  const m = raw.match(/Regular Season\s*-\s*(\d+)/i);
+function toNullableScore(v: string | number | null): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isInteger(n) ? n : null;
+}
+
+function matchdayFromRound(round: string | null): number | null {
+  if (!round) return null;
+  const m = String(round).match(/(\d+)/);
   return m ? Number(m[1]) : null;
 }
 
+function roundName(round: string | null): string | null {
+  if (!round) return null;
+  const n = matchdayFromRound(round);
+  return n ? `Kolejka ${n}` : round;
+}
+
+async function fetchEvents(path: string): Promise<TSDBEvent[]> {
+  const url = `https://www.thesportsdb.com/api/v1/json/${API_KEY}/${path}?id=${EKSTRAKLASA_LEAGUE_ID}`;
+  const res = await fetch(url, { next: { revalidate: 0 } });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`TheSportsDB responded ${res.status}: ${body}`);
+  }
+  const data = (await res.json()) as TSDBResponse;
+  return data.events ?? [];
+}
+
 /**
- * Fetch Ekstraklasa fixtures from API-Football and upsert them into Supabase.
- * Tries the current calendar year as the season, falls back to previous year
- * (Ekstraklasa seasons span two years and are labelled by the start year).
+ * Fetch Ekstraklasa fixtures from TheSportsDB and upsert them into Supabase.
+ * Combines past events (for results/scoring) and upcoming events (for typing).
  * Returns the number of fixtures upserted.
  */
 export async function syncFixtures(): Promise<number> {
-  const apiKey = process.env.API_FOOTBALL_KEY;
-  if (!apiKey) throw new Error("API_FOOTBALL_KEY is not set");
+  const [past, upcoming] = await Promise.all([
+    fetchEvents("eventspastleague.php"),
+    fetchEvents("eventsnextleague.php"),
+  ]);
 
-  const headers = { "x-apisports-key": apiKey };
+  // Deduplicate by event id (past and upcoming shouldn't overlap, just in case).
+  const byId = new Map<string, TSDBEvent>();
+  for (const e of [...past, ...upcoming]) byId.set(e.idEvent, e);
 
-  // Free tier allows seasons 2022..2024. Try the most recent first and work
-  // backwards — Ekstraklasa seasons span two calendar years and are labelled
-  // by the start year, so 2024 = the 2024/25 season.
-  const thisYear = new Date().getUTCFullYear();
-  const maxAllowed = Math.min(thisYear, 2024);
-  const seasonsToTry = [maxAllowed, maxAllowed - 1, maxAllowed - 2].filter(
-    (s) => s >= 2022,
-  );
-
-  let data: APIResponse | null = null;
-  let usedSeason: string | null = null;
-
-  for (const season of seasonsToTry) {
-    const url = `https://v3.football.api-sports.io/fixtures?league=${EKSTRAKLASA_LEAGUE_ID}&season=${season}`;
-    const res = await fetch(url, { headers, next: { revalidate: 0 } });
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`API-Football responded ${res.status}: ${body}`);
-    }
-    const parsed = (await res.json()) as APIResponse;
-    if (parsed.errors && Object.keys(parsed.errors as object).length > 0) {
-      throw new Error(`API-Football error: ${JSON.stringify(parsed.errors)}`);
-    }
-    if ((parsed.response ?? []).length > 0) {
-      data = parsed;
-      usedSeason = String(season);
-      break;
-    }
-  }
-
-  if (!data || (data.response ?? []).length === 0) {
-    return 0;
-  }
-
-  const competitionName = "Ekstraklasa";
-  const seasonLabel = usedSeason
-    ? `${usedSeason}/${Number(usedSeason) + 1}`
-    : null;
-
-  const rows: Omit<Fixture, "created_at" | "updated_at">[] = (data.response ?? []).map((m) => ({
-    id: m.fixture.id,
-    matchday: matchdayFromRound(m.league.round),
-    matchday_name: roundName(m.league.round),
-    season: seasonLabel,
-    competition: competitionName,
-    home_team: m.teams.home.name,
-    away_team: m.teams.away.name,
-    home_team_crest: m.teams.home.logo ?? null,
-    away_team_crest: m.teams.away.logo ?? null,
-    utc_date: m.fixture.date,
-    status: mapStatus(m.fixture.status.short),
-    home_score: m.goals.home,
-    away_score: m.goals.away,
+  const rows: Omit<Fixture, "created_at" | "updated_at">[] = [...byId.values()].map((e) => ({
+    id: Number(e.idEvent),
+    matchday: matchdayFromRound(e.intRound),
+    matchday_name: roundName(e.intRound),
+    season: e.strSeason ?? null,
+    competition: "Ekstraklasa",
+    home_team: e.strHomeTeam,
+    away_team: e.strAwayTeam,
+    home_team_crest: e.strHomeTeamBadge ?? null,
+    away_team_crest: e.strAwayTeamBadge ?? null,
+    utc_date: toIsoDate(e),
+    status: mapStatus(e),
+    home_score: toNullableScore(e.intHomeScore),
+    away_score: toNullableScore(e.intAwayScore),
   }));
 
   if (rows.length === 0) return 0;

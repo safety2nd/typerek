@@ -18,4 +18,4 @@ Use Node 20+ (`nvm use 20`).
 - Next.js 16 app router. Proxy (formerly middleware) at `src/proxy.ts` guards all routes except `/login` and cron/health APIs.
 - Supabase for auth + Postgres. Server client: `src/lib/supabase/server.ts` (`createClient` = RLS-scoped, `createServiceClient` = bypasses RLS, admin only).
 - Scoring lives in a Postgres function `score_fixture` triggered when a fixture is marked FINISHED. See `supabase/schema.sql`.
-- Fixtures source: API-Football (api-sports.io, free tier, Ekstraklasa league ID 106). Sync logic in `src/lib/fixtures.ts`.
+- Fixtures source: TheSportsDB (free public API, no key, Ekstraklasa league ID 4422). Sync logic in `src/lib/fixtures.ts`.
