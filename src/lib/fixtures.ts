@@ -105,6 +105,15 @@ export async function syncFixtures(): Promise<number> {
   if (rows.length === 0) return 0;
 
   const supabase = createServiceClient();
+
+  // Delete fixtures from other seasons so stale data doesn't linger.
+  if (rows[0].season) {
+    await supabase
+      .from("fixtures")
+      .delete()
+      .neq("season", rows[0].season);
+  }
+
   const { error } = await supabase.from("fixtures").upsert(rows, { onConflict: "id" });
   if (error) throw new Error(`Supabase upsert failed: ${error.message}`);
 
