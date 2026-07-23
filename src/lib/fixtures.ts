@@ -64,9 +64,14 @@ export async function syncFixtures(): Promise<number> {
 
   const headers = { "x-apisports-key": apiKey };
 
-  // Try current year, then previous year (seasons span two calendar years).
+  // Free tier allows seasons 2022..2024. Try the most recent first and work
+  // backwards — Ekstraklasa seasons span two calendar years and are labelled
+  // by the start year, so 2024 = the 2024/25 season.
   const thisYear = new Date().getUTCFullYear();
-  const seasonsToTry = [thisYear, thisYear - 1];
+  const maxAllowed = Math.min(thisYear, 2024);
+  const seasonsToTry = [maxAllowed, maxAllowed - 1, maxAllowed - 2].filter(
+    (s) => s >= 2022,
+  );
 
   let data: APIResponse | null = null;
   let usedSeason: string | null = null;
