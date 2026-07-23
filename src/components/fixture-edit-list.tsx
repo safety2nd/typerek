@@ -79,6 +79,7 @@ function FixtureEditRow({ fixture }: { fixture: Fixture }) {
       >
         <option value="SCHEDULED">Zaplanowany</option>
         <option value="FINISHED">Zakończony</option>
+        <option value="CANCELLED">Anulowany</option>
       </select>
       <button
         onClick={save}

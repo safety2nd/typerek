@@ -8,6 +8,7 @@ export async function getUpcomingFixtures(userId: string): Promise<FixtureWithPr
     .select("*")
     .order("utc_date", { ascending: true })
     .gte("utc_date", new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString())
+    .neq("status", "CANCELLED")
     .limit(50);
   const fixtures = (data ?? []) as Fixture[];
 

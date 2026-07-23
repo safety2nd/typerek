@@ -136,6 +136,11 @@ begin
   select home_score, away_score, status into v_home, v_away, v_status
   from public.fixtures where id = f_fixture_id;
 
+  if v_status = 'CANCELLED' then
+    update public.predictions set points = null where fixture_id = f_fixture_id;
+    return;
+  end if;
+
   if v_status <> 'FINISHED' or v_home is null or v_away is null then
     return;
   end if;

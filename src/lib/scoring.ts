@@ -35,5 +35,6 @@ export function isKickoffPast(fixture: Predictable): boolean {
 }
 
 export function canPredict(fixture: Predictable): boolean {
+  if (fixture.status === "CANCELLED") return false;
   return !isKickoffPast(fixture) && fixture.status === "SCHEDULED";
 }
