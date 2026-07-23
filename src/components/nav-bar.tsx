@@ -1,50 +1,41 @@
 import Link from "next/link";
 import { getCurrentUser, getProfile } from "@/lib/auth";
+import { MobileNav } from "./mobile-nav";
 
 export async function NavBar() {
   const user = await getCurrentUser();
   const profile = user ? await getProfile() : null;
 
+  const links = user ? (
+    <>
+      <Link href="/" className="hover:underline">Typuj</Link>
+      <Link href="/standings" className="hover:underline">Tabela</Link>
+      <Link href="/stats" className="hover:underline">Statystyki</Link>
+      <Link href="/dashboard" className="hover:underline">Tablica typów</Link>
+      <Link href="/predictions" className="hover:underline">Wszystkie typy</Link>
+      {profile?.is_admin ? (
+        <Link href="/admin" className="hover:underline text-amber-500">Admin</Link>
+      ) : null}
+      <form action="/auth/signout" method="post">
+        <button className="hover:underline" type="submit">Wyloguj</button>
+      </form>
+    </>
+  ) : (
+    <Link href="/login" className="hover:underline">Zaloguj</Link>
+  );
+
   return (
     <header className="w-full border-b border-zinc-200 dark:border-zinc-800">
       <nav className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="font-bold tracking-tight">
-          Liga Garażowa imienia Marka Anchimiuka
+        <Link href="/" className="font-bold tracking-tight whitespace-nowrap">
+          <span className="hidden sm:inline">Liga Garażowa imienia Marka Anchimiuka</span>
+          <span className="sm:hidden">LGA</span>
         </Link>
-        <div className="flex items-center gap-4 text-sm">
-          {user ? (
-            <>
-              <Link href="/" className="hover:underline">
-                Typuj
-              </Link>
-              <Link href="/standings" className="hover:underline">
-                Tabela
-              </Link>
-              <Link href="/stats" className="hover:underline">
-                Statystyki
-              </Link>
-              <Link href="/dashboard" className="hover:underline">
-                Tablica typów
-              </Link>
-              <Link href="/predictions" className="hover:underline">
-                Wszystkie typy
-              </Link>
-              {profile?.is_admin ? (
-                <Link href="/admin" className="hover:underline text-amber-500">
-                  Admin
-                </Link>
-              ) : null}
-              <form action="/auth/signout" method="post">
-                <button className="hover:underline" type="submit">
-                  Wyloguj
-                </button>
-              </form>
-            </>
-          ) : (
-            <Link href="/login" className="hover:underline">
-              Zaloguj
-            </Link>
-          )}
+        <div className="hidden sm:flex items-center gap-4 text-sm">
+          {links}
+        </div>
+        <div className="sm:hidden">
+          <MobileNav>{links}</MobileNav>
         </div>
       </nav>
     </header>
