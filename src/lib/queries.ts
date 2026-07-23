@@ -101,3 +101,55 @@ export async function getEmailForUsername(username: string): Promise<string | nu
   if (error || !user?.user?.email) return null;
   return user.user.email;
 }
+
+export interface FixtureWithPredictions extends Fixture {
+  predictions: {
+    username: string;
+    home_score: number;
+    away_score: number;
+    points: number | null;
+  }[];
+}
+
+/** All fixtures with everyone's predictions, grouped by fixture (most recent first). */
+export async function getFixturesWithAllPredictions(): Promise<FixtureWithPredictions[]> {
+  const supabase = await createClient();
+  const { data: fixtures } = await supabase
+    .from("fixtures")
+    .select("*")
+    .order("utc_date", { ascending: false })
+    .limit(100);
+  const fixtureRows = (fixtures ?? []) as Fixture[];
+  if (fixtureRows.length === 0) return [];
+
+  const { data: preds } = await supabase
+    .from("predictions")
+    .select("fixture_id, home_score, away_score, points, profiles!inner(username)")
+    .in("fixture_id", fixtureRows.map((f) => f.id));
+
+  const byFixture = new Map<number, FixtureWithPredictions["predictions"]>();
+  for (const p of preds ?? []) {
+    const row = p as unknown as {
+      fixture_id: number;
+      home_score: number;
+      away_score: number;
+      points: number | null;
+      profiles: { username: string };
+    };
+    const arr = byFixture.get(row.fixture_id) ?? [];
+    arr.push({
+      username: row.profiles.username,
+      home_score: row.home_score,
+      away_score: row.away_score,
+      points: row.points,
+    });
+    byFixture.set(row.fixture_id, arr);
+  }
+
+  return fixtureRows.map((f) => ({
+    ...f,
+    predictions: (byFixture.get(f.id) ?? []).sort((a, b) =>
+      a.username.localeCompare(b.username),
+    ),
+  }));
+}

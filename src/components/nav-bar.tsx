@@ -20,6 +20,9 @@ export async function NavBar() {
               <Link href="/standings" className="hover:underline">
                 Tabela
               </Link>
+              <Link href="/dashboard" className="hover:underline">
+                Tablica typów
+              </Link>
               <Link href="/predictions" className="hover:underline">
                 Wszystkie typy
               </Link>
