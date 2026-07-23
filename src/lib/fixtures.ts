@@ -66,33 +66,27 @@ function roundName(round: string | null): string | null {
   return n ? `Kolejka ${n}` : round;
 }
 
-async function fetchEvents(path: string): Promise<TSDBEvent[]> {
-  const url = `https://www.thesportsdb.com/api/v1/json/${API_KEY}/${path}?id=${EKSTRAKLASA_LEAGUE_ID}`;
-  const res = await fetch(url, { next: { revalidate: 0 } });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`TheSportsDB responded ${res.status}: ${body}`);
-  }
-  const data = (await res.json()) as TSDBResponse;
-  return data.events ?? [];
-}
-
 /**
  * Fetch Ekstraklasa fixtures from TheSportsDB and upsert them into Supabase.
- * Combines past events (for results/scoring) and upcoming events (for typing).
+ * Uses the season endpoint to get the full season schedule (past + upcoming).
  * Returns the number of fixtures upserted.
  */
 export async function syncFixtures(): Promise<number> {
-  const [past, upcoming] = await Promise.all([
-    fetchEvents("eventspastleague.php"),
-    fetchEvents("eventsnextleague.php"),
-  ]);
+  // The current season label is available from the league info; fall back to
+  // deriving it from the current year (Ekstraklasa starts in July).
+  const thisYear = new Date().getUTCFullYear();
+  const month = new Date().getUTCMonth();
+  // Season spans two years starting in July; label is "YYYY-YYYY".
+  const startYear = month >= 6 ? thisYear : thisYear - 1;
+  const seasonsToTry = [`${startYear}-${startYear + 1}`, `${startYear - 1}-${startYear}`];
 
-  // Deduplicate by event id (past and upcoming shouldn't overlap, just in case).
-  const byId = new Map<string, TSDBEvent>();
-  for (const e of [...past, ...upcoming]) byId.set(e.idEvent, e);
+  let events: TSDBEvent[] = [];
+  for (const season of seasonsToTry) {
+    events = await fetchSeasonEvents(season);
+    if (events.length > 0) break;
+  }
 
-  const rows: Omit<Fixture, "created_at" | "updated_at">[] = [...byId.values()].map((e) => ({
+  const rows: Omit<Fixture, "created_at" | "updated_at">[] = events.map((e) => ({
     id: Number(e.idEvent),
     matchday: matchdayFromRound(e.intRound),
     matchday_name: roundName(e.intRound),
@@ -123,4 +117,15 @@ export async function syncFixtures(): Promise<number> {
   }
 
   return rows.length;
+}
+
+async function fetchSeasonEvents(season: string): Promise<TSDBEvent[]> {
+  const url = `https://www.thesportsdb.com/api/v1/json/${API_KEY}/eventsseason.php?id=${EKSTRAKLASA_LEAGUE_ID}&s=${season}`;
+  const res = await fetch(url, { next: { revalidate: 0 } });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`TheSportsDB responded ${res.status}: ${body}`);
+  }
+  const data = (await res.json()) as TSDBResponse;
+  return data.events ?? [];
 }
