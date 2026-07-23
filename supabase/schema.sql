@@ -50,6 +50,11 @@ create table if not exists public.predictions (
   unique (user_id, fixture_id)
 );
 
+-- FK to profiles so PostgREST can join predictions -> profiles
+alter table public.predictions
+  add constraint predictions_user_id_fkey_profiles
+  foreign key (user_id) references public.profiles (id) on delete cascade;
+
 create index if not exists predictions_fixture_idx on public.predictions (fixture_id);
 create index if not exists predictions_user_idx on public.predictions (user_id);
 
