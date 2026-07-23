@@ -9,7 +9,7 @@ Ekstraklasa score-prediction pool for you and your buddies. Built with Next.js 1
 - Scoring: **2 pts** for exact score, **1 pt** for correct outcome (home win / draw / away win), **0** otherwise.
 - Global predictions list + live standings leaderboard.
 - Admin can edit fixture results (fix mistakes), add/remove users, and toggle admins.
-- Fixtures auto-sync daily from [football-data.org](https://www.football-data.org/) (free tier, Ekstraklasa code `PL`).
+- Fixtures auto-sync daily from [API-Football](https://www.api-football.com/) (free tier, Ekstraklasa league 106).
 - Scoring runs automatically in Postgres when a fixture is marked FINISHED.
 
 ## Stack
@@ -17,7 +17,7 @@ Ekstraklasa score-prediction pool for you and your buddies. Built with Next.js 1
 - **Frontend**: Next.js 16 (app router, proxy auth), Tailwind CSS v4.
 - **Backend/DB**: Supabase (Postgres + Auth + RLS).
 - **Hosting**: Vercel (free) + Vercel Cron for daily fixture sync.
-- **Fixtures API**: football-data.org free tier.
+- **Fixtures API**: API-Football (api-sports.io) free tier, Ekstraklasa league ID 106.
 
 ## Setup
 
@@ -30,10 +30,10 @@ Ekstraklasa score-prediction pool for you and your buddies. Built with Next.js 1
    - `anon public` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`
 
-### 2. football-data.org
+### 2. API-Football (api-sports.io)
 
-1. Sign up at [football-data.org](https://www.football-data.org/) (free tier covers Ekstraklasa).
-2. Copy your API token → `FOOTBALL_DATA_API_KEY`.
+1. Sign up at [api-sports.io](https://www.api-football.com/) (free tier: 100 requests/day, covers Ekstraklasa as league 106).
+2. Copy your API key → `API_FOOTBALL_KEY`.
 
 ### 3. Local env
 
@@ -99,7 +99,7 @@ src/
   lib/
     supabase/             # Supabase clients (server + browser)
     auth.ts               # Session helpers
-    fixtures.ts           # football-data.org sync
+    fixtures.ts           # API-Football sync (Ekstraklasa league 106)
     scoring.ts            # Client-side scoring helpers
     queries.ts            # Data access
     types.ts
