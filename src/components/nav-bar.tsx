@@ -27,9 +27,8 @@ export async function NavBar() {
   return (
     <header className="w-full border-b border-zinc-200 dark:border-zinc-800">
       <nav className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="font-bold tracking-tight whitespace-nowrap">
-          <span className="hidden sm:inline">Liga Garażowa imienia Marka Anchimiuka</span>
-          <span className="sm:hidden">LGA</span>
+        <Link href="/" className="font-bold tracking-tight whitespace-nowrap text-sm sm:text-base">
+          Liga Garażowa imienia Marka Anchimiuka
         </Link>
         <div className="hidden sm:flex items-center gap-4 text-sm">
           {links}
