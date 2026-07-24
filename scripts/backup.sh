@@ -34,6 +34,9 @@ done
 
 : "${SUPABASE_DB_URL:?SUPABASE_DB_URL is required (direct Postgres connection string)}"
 
+# Trim trailing whitespace/newlines (common when pasting into GitHub secrets)
+SUPABASE_DB_URL="$(printf '%s' "$SUPABASE_DB_URL" | tr -d '\r\n' | sed 's/[[:space:]]*$//')"
+
 # Diagnostic: confirm the var is set and looks like a URL (value is masked by CI)
 echo "SUPABASE_DB_URL length: ${#SUPABASE_DB_URL}"
 case "$SUPABASE_DB_URL" in
