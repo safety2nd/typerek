@@ -34,6 +34,13 @@ done
 
 : "${SUPABASE_DB_URL:?SUPABASE_DB_URL is required (direct Postgres connection string)}"
 
+# Diagnostic: confirm the var is set and looks like a URL (value is masked by CI)
+echo "SUPABASE_DB_URL length: ${#SUPABASE_DB_URL}"
+case "$SUPABASE_DB_URL" in
+  postgresql://*|postgres://*) : ;;
+  *) echo "ERROR: SUPABASE_DB_URL does not start with postgresql:// or postgres://" >&2; exit 1 ;;
+esac
+
 OUT_DIR="${1:-$PROJECT_ROOT/backups/backup-$(date -u +%Y-%m-%dT%H-%M-%SZ)}"
 mkdir -p "$OUT_DIR"
 
@@ -45,7 +52,7 @@ echo "Backing up database to $DUMP_FILE.gz ..."
 # --clean --if-exists: restore script drops existing objects first
 # --quote-all-identifiers: safe against reserved words
 # --column-inserts: human-readable, row-level restore (slower but robust)
-pg_dump "$SUPABASE_DB_URL" \
+pg_dump --dbname="$SUPABASE_DB_URL" \
   --format=plain \
   --no-owner \
   --no-privileges \
