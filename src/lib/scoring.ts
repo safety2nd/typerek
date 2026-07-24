@@ -9,7 +9,7 @@ export function outcome(home: number, away: number): "H" | "D" | "A" {
 
 /**
  * Points for a prediction against a finished fixture.
- *   exact score -> 2
+ *   exact score -> 3
  *   correct outcome -> 1
  *   otherwise -> 0
  */
@@ -21,7 +21,7 @@ export function scorePrediction(
     return null;
   }
   const exact = pred.home_score === fixture.home_score && pred.away_score === fixture.away_score;
-  if (exact) return 2;
+  if (exact) return 3;
   return outcome(pred.home_score, pred.away_score) ===
     outcome(fixture.home_score, fixture.away_score)
     ? 1

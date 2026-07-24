@@ -6,7 +6,7 @@ Ekstraklasa score-prediction pool for you and your buddies. Built with Next.js 1
 
 - Individual user accounts (admin creates them — no public sign-up).
 - Predict exact scores for upcoming Ekstraklasa fixtures.
-- Scoring: **2 pts** for exact score, **1 pt** for correct outcome (home win / draw / away win), **0** otherwise.
+- Scoring: **3 pts** for exact score, **1 pt** for correct outcome (home win / draw / away win), **0** otherwise.
 - Global predictions list + live standings leaderboard.
 - Admin can edit fixture results (fix mistakes), add/remove users, and toggle admins.
 - Fixtures entered manually by admin from a hardcoded list of 18 Ekstraklasa teams.

@@ -79,7 +79,7 @@ export async function getPlayerStats(): Promise<PlayerStat[]> {
     if (r.points != null) {
       s.scored++;
       s.total_points += r.points;
-      if (r.points === 2) s.exact_hits++;
+      if (r.points === 3) s.exact_hits++;
       else if (r.points === 1) s.outcome_hits++;
       else s.zero_hits++;
     }

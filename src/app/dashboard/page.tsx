@@ -51,7 +51,7 @@ function FixtureCard({ fixture }: { fixture: FixtureWithPredictions }) {
               key={p.username}
               className={`rounded px-3 py-1.5 text-sm font-mono ${
                 finished
-                  ? p.points === 2
+                  ? p.points === 3
                     ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
                     : p.points === 1
                       ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"

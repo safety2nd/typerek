@@ -276,7 +276,7 @@ group by p.user_id, pr.username;
 -- =========================================================
 -- function: score_fixture(fixture_id)
 -- Recomputes points for all predictions of a finished fixture.
---   exact score = 2 pts
+--   exact score = 3 pts
 --   correct outcome (home win / draw / away win) = 1 pt
 --   otherwise = 0 pts
 -- =========================================================
@@ -301,7 +301,7 @@ begin
 
   update public.predictions
   set points = case
-    when home_score = v_home and away_score = v_away then 2
+    when home_score = v_home and away_score = v_away then 3
     when sign(home_score - away_score) = sign(v_home - v_away) then 1
     else 0
   end
