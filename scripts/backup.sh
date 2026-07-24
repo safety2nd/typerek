@@ -41,6 +41,36 @@ case "$SUPABASE_DB_URL" in
   *) echo "ERROR: SUPABASE_DB_URL does not start with postgresql:// or postgres://" >&2; exit 1 ;;
 esac
 
+# Parse the connection string into PG* env vars.
+# pg_dump's conninfo parser sometimes chokes on Supabase pooler usernames
+# containing a dot (e.g. postgres.<ref>), so we feed components individually.
+URL_NO_SCHEME="${SUPABASE_DB_URL#*://}"
+AUTH_HOST_DB="${URL_NO_SCHEME%%\?*}"      # strip query string if present
+AUTH_AND_HOST="${AUTH_HOST_DB%%/*}"        # user:pass@host:port
+DB_NAME="${AUTH_HOST_DB#*/}"               # part after first slash
+[ -z "$DB_NAME" ] && DB_NAME="postgres"
+
+USER_PASS="${AUTH_AND_HOST%@*}"             # user:pass
+PGHOST="${AUTH_AND_HOST#*@}"               # host:port
+
+PGUSER="${USER_PASS%%:*}"
+PGPASSWORD="${USER_PASS#*:}"
+
+# Handle IPv6 host [::1]:port — strip brackets for PGHOST
+if [[ "$PGHOST" == \[* ]]; then
+  PGHOST="${PGHOST#[}"
+  PGHOST="${PGHOST%%]:*}"
+fi
+
+# Split host:port (port optional)
+PGPORT="5432"
+case "$PGHOST" in
+  *:*) PGPORT="${PGHOST##*:}"; PGHOST="${PGHOST%:*}" ;;
+esac
+
+export PGUSER PGPASSWORD PGHOST PGPORT
+echo "Parsed: host=$PGHOST port=$PGPORT user=$PGUSER db=$DB_NAME"
+
 OUT_DIR="${1:-$PROJECT_ROOT/backups/backup-$(date -u +%Y-%m-%dT%H-%M-%SZ)}"
 mkdir -p "$OUT_DIR"
 
@@ -52,7 +82,7 @@ echo "Backing up database to $DUMP_FILE.gz ..."
 # --clean --if-exists: restore script drops existing objects first
 # --quote-all-identifiers: safe against reserved words
 # --column-inserts: human-readable, row-level restore (slower but robust)
-pg_dump --dbname="$SUPABASE_DB_URL" \
+pg_dump --dbname="$DB_NAME" \
   --format=plain \
   --no-owner \
   --no-privileges \
