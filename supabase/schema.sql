@@ -268,6 +268,8 @@ select
   count(p.points) filter (where p.points is not null) as scored_predictions,
   count(p.points) filter (where p.points = 3) as exact_hits,
   count(p.points) filter (where p.points >= 1 and p.points < 3) as outcome_hits,
+  coalesce(sum(p.points) filter (where p.points is not null and p.points < 3), 0)
+    - count(p.points) filter (where p.points >= 1 and p.points < 3) as goal_bonus_points,
   count(*) as total_predictions
 from public.predictions p
 join public.profiles pr on pr.id = p.user_id

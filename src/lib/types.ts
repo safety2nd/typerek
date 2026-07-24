@@ -41,6 +41,7 @@ export interface LeaderboardRow {
   scored_predictions: number;
   exact_hits: number;
   outcome_hits: number;
+  goal_bonus_points: number;
   total_predictions: number;
 }
 

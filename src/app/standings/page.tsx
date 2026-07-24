@@ -20,6 +20,7 @@ export default async function StandingsPage() {
                 <th className="py-2 pr-4 text-right">Punkty</th>
                 <th className="py-2 pr-4 text-right">Dokładnie</th>
                 <th className="py-2 pr-4 text-right">Wynik</th>
+                <th className="py-2 pr-4 text-right">Bonus bramki</th>
                 <th className="py-2 pr-4 text-right">Typy</th>
               </tr>
             </thead>
@@ -31,6 +32,7 @@ export default async function StandingsPage() {
                   <td className="py-2 pr-4 text-right font-bold">{r.total_points}</td>
                   <td className="py-2 pr-4 text-right">{r.exact_hits}</td>
                   <td className="py-2 pr-4 text-right">{r.outcome_hits}</td>
+                  <td className="py-2 pr-4 text-right text-cyan-500">{r.goal_bonus_points || "—"}</td>
                   <td className="py-2 pr-4 text-right text-zinc-500">{r.total_predictions}</td>
                 </tr>
               ))}
