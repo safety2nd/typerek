@@ -11,10 +11,10 @@ const COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"
 export function PointsBarChart({ stats }: { stats: PlayerStat[] }) {
   const data = stats.map((s) => ({
     username: s.username.length > 10 ? s.username.slice(0, 8) + "…" : s.username,
-    Dokładnie: s.exact_hits,
+    Dokładnie: s.exact_hits * 3,
     Wynik: s.outcome_hits,
     "Bonus bramki": s.goal_bonus_points,
-    Pudła: s.zero_hits,
+    Pudła: 0,
   }));
   return (
     <ResponsiveContainer width="100%" height={300}>
