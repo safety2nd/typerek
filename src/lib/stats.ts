@@ -7,6 +7,7 @@ export interface PlayerStat {
   exact_hits: number;
   outcome_hits: number;
   zero_hits: number;
+  goal_bonus_points: number;
   scored: number;
   total: number;
   accuracy: number;
@@ -67,6 +68,7 @@ export async function getPlayerStats(): Promise<PlayerStat[]> {
         exact_hits: 0,
         outcome_hits: 0,
         zero_hits: 0,
+        goal_bonus_points: 0,
         scored: 0,
         total: 0,
         accuracy: 0,
@@ -80,8 +82,12 @@ export async function getPlayerStats(): Promise<PlayerStat[]> {
         s.scored++;
         s.total_points += r.points;
         if (r.points === 3) s.exact_hits++;
-        else if (r.points >= 1) s.outcome_hits++;
-        else s.zero_hits++;
+        else {
+          const outcomePts = r.points >= 1 ? 1 : 0;
+          s.goal_bonus_points += r.points - outcomePts;
+          if (outcomePts) s.outcome_hits++;
+          else s.zero_hits++;
+        }
       }
     s.avg_predicted_goals += r.home_score + r.away_score;
     if (r.home_score > r.away_score) s.home_win_bias++;
@@ -89,6 +95,7 @@ export async function getPlayerStats(): Promise<PlayerStat[]> {
 
   const result = [...byPlayer.values()].map((s) => ({
     ...s,
+    goal_bonus_points: +s.goal_bonus_points.toFixed(2),
     accuracy: s.scored > 0 ? Math.round((s.exact_hits + s.outcome_hits) / s.scored * 100) : 0,
     avg_predicted_goals: s.total > 0 ? +(s.avg_predicted_goals / s.total).toFixed(2) : 0,
     home_win_bias: s.total > 0 ? Math.round(s.home_win_bias / s.total * 100) : 0,

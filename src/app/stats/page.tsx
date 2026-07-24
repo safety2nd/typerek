@@ -60,6 +60,7 @@ export default async function StatsPage() {
                     <th className="py-2 pr-4 text-right">Dokładnie</th>
                     <th className="py-2 pr-4 text-right">Wynik</th>
                     <th className="py-2 pr-4 text-right">Pudła</th>
+                    <th className="py-2 pr-4 text-right">Bonus bramki</th>
                     <th className="py-2 pr-4 text-right">Dokładność</th>
                     <th className="py-2 pr-4 text-right">Śr. bramek</th>
                     <th className="py-2 pr-4 text-right">Bias dom</th>
@@ -73,6 +74,7 @@ export default async function StatsPage() {
                       <td className="py-2 pr-4 text-right text-green-500">{s.exact_hits}</td>
                       <td className="py-2 pr-4 text-right text-amber-500">{s.outcome_hits}</td>
                       <td className="py-2 pr-4 text-right text-zinc-500">{s.zero_hits}</td>
+                      <td className="py-2 pr-4 text-right text-cyan-500">{s.goal_bonus_points || "—"}</td>
                       <td className="py-2 pr-4 text-right">{s.accuracy}%</td>
                       <td className="py-2 pr-4 text-right">{s.avg_predicted_goals}</td>
                       <td className="py-2 pr-4 text-right">{s.home_win_bias}%</td>

@@ -13,6 +13,7 @@ export function PointsBarChart({ stats }: { stats: PlayerStat[] }) {
     username: s.username.length > 10 ? s.username.slice(0, 8) + "…" : s.username,
     Dokładnie: s.exact_hits,
     Wynik: s.outcome_hits,
+    "Bonus bramki": s.goal_bonus_points,
     Pudła: s.zero_hits,
   }));
   return (
@@ -25,6 +26,7 @@ export function PointsBarChart({ stats }: { stats: PlayerStat[] }) {
         <Legend />
         <Bar dataKey="Dokładnie" stackId="a" fill="#10b981" />
         <Bar dataKey="Wynik" stackId="a" fill="#f59e0b" />
+        <Bar dataKey="Bonus bramki" stackId="a" fill="#06b6d4" />
         <Bar dataKey="Pudła" stackId="a" fill="#6b7280" />
       </BarChart>
     </ResponsiveContainer>
