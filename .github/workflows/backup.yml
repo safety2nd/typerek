@@ -12,14 +12,10 @@ jobs:
     environment: Production
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm install @supabase/supabase-js
-      - run: node scripts/backup.mjs backups/latest
+      - name: Run pg_dump backup
+        run: ./scripts/backup.sh backups/latest
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
         with:
