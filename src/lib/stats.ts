@@ -76,13 +76,13 @@ export async function getPlayerStats(): Promise<PlayerStat[]> {
     }
     const s = byPlayer.get(name)!;
     s.total++;
-    if (r.points != null) {
-      s.scored++;
-      s.total_points += r.points;
-      if (r.points === 3) s.exact_hits++;
-      else if (r.points === 1) s.outcome_hits++;
-      else s.zero_hits++;
-    }
+      if (r.points != null) {
+        s.scored++;
+        s.total_points += r.points;
+        if (r.points === 3) s.exact_hits++;
+        else if (r.points >= 1) s.outcome_hits++;
+        else s.zero_hits++;
+      }
     s.avg_predicted_goals += r.home_score + r.away_score;
     if (r.home_score > r.away_score) s.home_win_bias++;
   }

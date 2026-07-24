@@ -44,7 +44,7 @@ create table if not exists public.predictions (
   fixture_id   bigint not null references public.fixtures (id) on delete cascade,
   home_score   int not null,
   away_score   int not null,
-  points       int,                                  -- null until fixture is finished & scored
+  points       numeric(5,2),                        -- null until fixture is finished & scored
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
   unique (user_id, fixture_id)
@@ -267,7 +267,7 @@ select
   coalesce(sum(p.points), 0) as total_points,
   count(p.points) filter (where p.points is not null) as scored_predictions,
   count(p.points) filter (where p.points = 3) as exact_hits,
-  count(p.points) filter (where p.points = 1) as outcome_hits,
+  count(p.points) filter (where p.points >= 1 and p.points < 3) as outcome_hits,
   count(*) as total_predictions
 from public.predictions p
 join public.profiles pr on pr.id = p.user_id
@@ -276,9 +276,11 @@ group by p.user_id, pr.username;
 -- =========================================================
 -- function: score_fixture(fixture_id)
 -- Recomputes points for all predictions of a finished fixture.
---   exact score = 3 pts
+--   exact score = 3 pts (max for a game; no goal bonuses added)
 --   correct outcome (home win / draw / away win) = 1 pt
---   otherwise = 0 pts
+--     + 0.25 pt per correctly predicted team goals (home and/or away)
+--   wrong outcome = 0 pts + 0.25 pt per correctly predicted team goals
+-- Points are stored as numeric to accommodate quarter-point increments.
 -- =========================================================
 create or replace function public.score_fixture(f_fixture_id bigint)
 returns void language plpgsql security definer as $$
@@ -302,8 +304,10 @@ begin
   update public.predictions
   set points = case
     when home_score = v_home and away_score = v_away then 3
-    when sign(home_score - away_score) = sign(v_home - v_away) then 1
-    else 0
+    else
+      (case when sign(home_score - away_score) = sign(v_home - v_away) then 1 else 0 end)
+      + (case when home_score = v_home then 0.25 else 0 end)
+      + (case when away_score = v_away then 0.25 else 0 end)
   end
   where fixture_id = f_fixture_id;
 end $$;

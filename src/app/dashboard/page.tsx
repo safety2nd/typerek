@@ -53,7 +53,7 @@ function FixtureCard({ fixture }: { fixture: FixtureWithPredictions }) {
                 finished
                   ? p.points === 3
                     ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                    : p.points === 1
+                    : p.points != null && p.points >= 1
                       ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
                       : "bg-zinc-100 text-zinc-500 dark:bg-zinc-900"
                   : "bg-zinc-100 dark:bg-zinc-900"
