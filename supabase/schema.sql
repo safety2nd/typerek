@@ -266,7 +266,7 @@ select
   pr.username,
   coalesce(sum(p.points), 0) as total_points,
   count(p.points) filter (where p.points is not null) as scored_predictions,
-  count(p.points) filter (where p.points = 2) as exact_hits,
+  count(p.points) filter (where p.points = 3) as exact_hits,
   count(p.points) filter (where p.points = 1) as outcome_hits,
   count(*) as total_predictions
 from public.predictions p
