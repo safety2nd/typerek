@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { formatDate } from "@/lib/format";
 
 interface UserRow {
   id: string;
@@ -61,7 +62,7 @@ function UserListRow({ user }: { user: UserRow }) {
       <td className="py-2 pr-4 font-medium">{user.username}</td>
       <td className="py-2 pr-4">{user.is_admin ? "tak" : "nie"}</td>
       <td className="py-2 pr-4 text-zinc-500">
-        {new Date(user.created_at).toLocaleDateString("pl-PL")}
+        {formatDate(user.created_at)}
       </td>
       <td className="py-2 pr-4 flex gap-2">
         <button

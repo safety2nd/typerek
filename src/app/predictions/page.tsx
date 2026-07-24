@@ -1,5 +1,6 @@
 import { requireProfile } from "@/lib/auth";
 import { getAllPredictions } from "@/lib/queries";
+import { formatDate } from "@/lib/format";
 
 export default async function AllPredictionsPage() {
   await requireProfile();
@@ -29,7 +30,7 @@ export default async function AllPredictionsPage() {
                   <td className="py-2 pr-4">
                     {r.home_team} v {r.away_team}
                     <div className="text-xs text-zinc-500">
-                      {new Date(r.utc_date).toLocaleDateString("pl-PL")}
+                      {formatDate(r.utc_date)}
                     </div>
                   </td>
                   <td className="py-2 pr-4 text-right font-mono">

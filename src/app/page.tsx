@@ -2,6 +2,7 @@ import { requireProfile } from "@/lib/auth";
 import { getUpcomingFixtures } from "@/lib/queries";
 import { PredictForm } from "@/components/predict-form";
 import { canPredict } from "@/lib/scoring";
+import { formatDateTime } from "@/lib/format";
 import type { FixtureWithPrediction } from "@/lib/types";
 
 export default async function Home() {
@@ -45,7 +46,7 @@ function FixtureCard({ fixture }: { fixture: FixtureWithPrediction }) {
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
       <div className="flex items-center justify-between text-xs text-zinc-500 mb-2">
         <span>{fixture.matchday_name ?? `Kolejka ${fixture.matchday ?? ""}`}</span>
-        <span>{new Date(fixture.utc_date).toLocaleString("pl-PL")}</span>
+        <span>{formatDateTime(fixture.utc_date)}</span>
       </div>
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 text-right font-medium">{fixture.home_team}</div>
@@ -73,7 +74,7 @@ function LockedCard({ fixture }: { fixture: FixtureWithPrediction }) {
             ? "Anulowany"
             : fixture.status === "FINISHED"
               ? `PW ${fixture.home_score ?? 0}-${fixture.away_score ?? 0}`
-              : new Date(fixture.utc_date).toLocaleString("pl-PL")}
+              : formatDateTime(fixture.utc_date)}
         </span>
       </div>
       <div className="flex items-center justify-between gap-4">

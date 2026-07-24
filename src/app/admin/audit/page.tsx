@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { formatDateTime } from "@/lib/format";
 
 export default async function AdminAuditPage() {
   await requireAdmin();
@@ -44,7 +45,7 @@ export default async function AdminAuditPage() {
                 {authRows.map((r: Record<string, unknown>) => (
                   <tr key={r.id as number} className="border-b border-zinc-100 dark:border-zinc-900">
                     <td className="py-2 pr-4 text-xs text-zinc-500">
-                      {new Date(r.created_at as string).toLocaleString("pl-PL")}
+                      {formatDateTime(r.created_at as string)}
                     </td>
                     <td className="py-2 pr-4 font-medium">
                       {(r.username as string) ?? "—"}
@@ -99,7 +100,7 @@ export default async function AdminAuditPage() {
                 {auditRows.map((r: Record<string, unknown>) => (
                   <tr key={r.id as number} className="border-b border-zinc-100 dark:border-zinc-900">
                     <td className="py-2 pr-4 text-xs text-zinc-500">
-                      {new Date(r.changed_at as string).toLocaleString("pl-PL")}
+                      {formatDateTime(r.changed_at as string)}
                     </td>
                     <td className="py-2 pr-4">{r.table_name as string}</td>
                     <td className="py-2 pr-4">

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { Fixture } from "@/lib/types";
+import { formatDate } from "@/lib/format";
 
 export function FixtureEditList({ fixtures }: { fixtures: Fixture[] }) {
   return (
@@ -51,7 +52,7 @@ function FixtureEditRow({ fixture }: { fixture: Fixture }) {
   return (
     <div className="rounded border border-zinc-200 dark:border-zinc-800 p-3 flex flex-wrap items-center gap-3 text-sm">
       <div className="text-xs text-zinc-500 w-32">
-        {new Date(fixture.utc_date).toLocaleDateString("pl-PL")}
+        {formatDate(fixture.utc_date)}
       </div>
       <div className="flex-1 font-medium">
         {fixture.home_team} v {fixture.away_team}
