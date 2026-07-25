@@ -1,14 +1,43 @@
 import { requireProfile } from "@/lib/auth";
-import { getFixturesWithAllPredictions } from "@/lib/queries";
+import { getFixturesWithAllPredictions, getMatchdays } from "@/lib/queries";
 import type { FixtureWithPredictions } from "@/lib/queries";
+import { MatchdaySelect } from "@/components/matchday-select";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kolecka?: string }>;
+}) {
   await requireProfile();
-  const fixtures = await getFixturesWithAllPredictions();
+  const sp = await searchParams;
+  const requested = sp.kolecka != null ? Number(sp.kolecka) : NaN;
+  const matchdays = await getMatchdays();
+  const selectedMatchday = Number.isInteger(requested)
+    ? matchdays.find((m) => m.matchday === requested)?.matchday ?? null
+    : matchdays[0]?.matchday ?? null;
+  const fixtures = await getFixturesWithAllPredictions(selectedMatchday ?? undefined);
+
+  const currentLabel = matchdays.find((m) => m.matchday === selectedMatchday);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Tablica typów</h1>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h1 className="text-2xl font-bold">Tablica typów</h1>
+        {matchdays.length > 0 ? (
+          <MatchdaySelect
+            matchdays={matchdays.map((m) => ({
+              matchday: m.matchday,
+              label: m.matchday_name ?? `Kolejka ${m.matchday}`,
+            }))}
+            selected={selectedMatchday}
+          />
+        ) : null}
+      </div>
+      {currentLabel ? (
+        <p className="text-sm text-zinc-500 -mt-2">
+          {currentLabel.matchday_name ?? `Kolejka ${currentLabel.matchday}`}
+        </p>
+      ) : null}
       {fixtures.length === 0 ? (
         <p className="text-zinc-500">Brak meczów.</p>
       ) : (

@@ -113,13 +113,17 @@ export interface FixtureWithPredictions extends Fixture {
 }
 
 /** All fixtures with everyone's predictions, grouped by fixture (most recent first). */
-export async function getFixturesWithAllPredictions(): Promise<FixtureWithPredictions[]> {
+export async function getFixturesWithAllPredictions(matchday?: number): Promise<FixtureWithPredictions[]> {
   const supabase = await createClient();
-  const { data: fixtures } = await supabase
+  let query = supabase
     .from("fixtures")
     .select("*")
     .order("utc_date", { ascending: false })
     .limit(100);
+  if (matchday != null) {
+    query = query.eq("matchday", matchday);
+  }
+  const { data: fixtures } = await query;
   const fixtureRows = (fixtures ?? []) as Fixture[];
   if (fixtureRows.length === 0) return [];
 
@@ -153,4 +157,27 @@ export async function getFixturesWithAllPredictions(): Promise<FixtureWithPredic
       a.username.localeCompare(b.username),
     ),
   }));
+}
+
+/** Distinct matchdays with at least one fixture, most recent first. */
+export async function getMatchdays(): Promise<{ matchday: number; matchday_name: string | null; fixture_count: number }[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("fixtures")
+    .select("matchday, matchday_name");
+  const rows = (data ?? []) as { matchday: number | null; matchday_name: string | null }[];
+  const byMatchday = new Map<number, { matchday_name: string | null; fixture_count: number }>();
+  for (const r of rows) {
+    if (r.matchday == null) continue;
+    const existing = byMatchday.get(r.matchday);
+    if (existing) {
+      existing.fixture_count += 1;
+      if (!existing.matchday_name && r.matchday_name) existing.matchday_name = r.matchday_name;
+    } else {
+      byMatchday.set(r.matchday, { matchday_name: r.matchday_name, fixture_count: 1 });
+    }
+  }
+  return [...byMatchday.entries()]
+    .map(([matchday, v]) => ({ matchday, matchday_name: v.matchday_name, fixture_count: v.fixture_count }))
+    .sort((a, b) => b.matchday - a.matchday);
 }
