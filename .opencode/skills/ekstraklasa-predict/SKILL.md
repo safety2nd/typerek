@@ -72,8 +72,23 @@ Research checklist per fixture (run these searches — adapt queries as needed):
   `"<home> <away> h2h bezpośrednie mecze historia"`
 - **Key absences** — query:
   `"<team> kontuzje zawieszenia skład"` or `"<team> injury news"`
+- **Latest transfers & squad moves (MANDATORY, recency-critical)** — run TWO
+  queries per team, scoped to the days just before kickoff:
+  - `"<team> transfer odejście nowy zawodnik <YYYY-MM> Ekstraklasa"` (use the
+    current month, e.g. 2026-07). Transfery.info, weszlo.com, meczyki.pl,
+    przegladsportowy.onet.pl and gol24.pl break squad moves within hours.
+  - `"<team> kadra mecz <przeciwnik> <YYYY-MM-DD>"` (use the kickoff date) to
+  catch same-day or last-48h confirmations of who is in/out.
+  Treat older squad lists (e.g. a kadra-na-Lidze-Konferencji article from
+  3+ days earlier) as STALE — a player listed there may already be sold.
+  Always cross-check the most recent item by publication date before quoting
+  a striker/defender as available. If a key name (top scorer, starting CB)
+  moved within the last 72h, note it in "Nieobecności" and adjust the
+  prediction accordingly. Never rely on a single source for "skład" — when
+  in doubt, fetch the official club site or Transfermarkt PL squad page via
+  `webfetch` and compare.
 - **Match preview** — query:
-  `"<home> <away> zapowiedźEkstraklasa"` (Polish sports sites like
+  `"<home> <away> zapowiedź Ekstraklasa"` (Polish sports sites like
   przegladsportowy.pl, sport.tvp.pl, 90minut.pl often have previews)
 - **Home/away splits** — query:
   `"<team> dom wyjazd bilans Ekstraklasa"`
@@ -82,7 +97,9 @@ Research checklist per fixture (run these searches — adapt queries as needed):
 
 You may run several `websearch` calls in parallel across fixtures. After
 finding relevant URLs via `websearch`, use `webfetch` to read the full content
-of the most promising results (e.g. a match preview article).
+of the most promising results (e.g. a match preview article). Prefer the
+freshest result by publication timestamp — recency beats authority when a
+transfer or injury just happened.
 
 If all searches return nothing useful, say so explicitly ("brak danych w
 wyszukiwarce") and fall back to a reasoned prior — never invent specifics
