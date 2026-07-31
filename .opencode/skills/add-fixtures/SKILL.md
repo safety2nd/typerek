@@ -47,10 +47,15 @@ The script:
   `SUPABASE_SERVICE_ROLE_KEY`,
 - fetches the terminarz HTML page,
 - parses the embedded Next.js JSON payload (`self.__next_f` stream), which
-  contains the full fixture set for the round including postponed matches
+  contains the complete fixture set for the round including postponed matches
   that the rendered HTML hides in a collapsed "Przełożone" accordion,
 - reads each fixture's `homeTeam.name`, `awayTeam.name`, `matchDatetime`
-  (ISO with timezone offset), and `postponed` flag,
+  (ISO with timezone offset), `postponed` flag, and `week` (round number),
+- **filters by `week`**: keeps only fixtures whose `week` matches the target
+  matchday. The "Przełożone" accordion lists postponed matches from OTHER
+  rounds that happen to fall in this date window — those are skipped so they
+  aren't imported as part of the current round. A current-round fixture that
+  is itself postponed stays and is inserted with `status = "POSTPONED"`,
 - deduplicates against existing `fixtures` rows on
   `(home_team, away_team, matchday)` — skips any already present,
 - inserts new rows with:
@@ -112,9 +117,9 @@ the exact stderr line and stop — do not attempt to fix the data manually.
   round.
 - **Matchday omitted** — if the user runs the script without a matchday arg,
   the script infers it from `kolejka-<N>` in the URL.
-- **Rescheduled (postponed) matches** — the JSON lists postponed fixtures
-  twice: once in the main round view (original date, `postponed: true`) and
-  once in the "Przełożone" section (rescheduled date, `postponed: true`). The
-  script dedupes within a run on `(home_team, away_team)`, keeping the first
-  occurrence (the original-date entry). If you want the rescheduled date
-  instead, edit the fixture manually after import, or extend the script.
+- **Rescheduled (postponed) matches from other rounds** — the "Przełożone"
+  accordion at the bottom of the terminarz page lists postponed matches from
+  *other* rounds that fall in this date window. These have a `week` value
+  different from the current round and are skipped by the parser. Only
+  current-round fixtures (including a current-round fixture that is itself
+  postponed) are imported.

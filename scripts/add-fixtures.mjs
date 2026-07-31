@@ -90,23 +90,38 @@ async function main() {
   }
 
   // Parse fixtures from the embedded Next.js JSON (self.__next_f stream).
-  // This is far more reliable than scraping rendered HTML: it captures every
-  // fixture in the round, including postponed matches that live in a hidden
-  // "Przełożone" accordion section that the visible HTML omits.
+  // The page's JSON contains every fixture shown on the terminarz page:
+  //   - the current round's matches (in the main list)
+  //   - postponed matches from OTHER rounds that land in this date window
+  //     (shown in a collapsed "Przełożone" accordion at the bottom)
+  // Each fixture object has a `week` field identifying which round it belongs
+  // to. We keep only fixtures whose `week` matches the target matchday, so
+  // postponed fixtures from other rounds are NOT imported as part of this
+  // round. A fixture in the current round that is itself postponed stays
+  // (postponed=true) and is inserted with status POSTPONED.
   //
   // The JSON is escaped inside the __next_f payloads (quotes appear as \"),
-  // so we unescape backslash-quotes first, then scan for fixture objects.
+  // so we unescape backslash-quotes first.
   const json = html.split('\\"').join('"');
-  const fixtureRe =
-    /"homeTeam":\{"id":"[^"]*","name":"([^"]+)".*?"awayTeam":\{"id":"[^"]*","name":"([^"]+)".*?"matchDatetime":"([^"]*)".*?"postponed":(true|false)/g;
+  // Match each fixture object: homeTeam.name, awayTeam.name, matchDatetime,
+  // week, postponed. The fields can appear in any order within the object, so
+  // we capture the whole object (matchId ... } before the next matchId) and
+  // pull fields out of it.
+  const fixtureRe = /"matchId":"[^"]*","seasonId":"[^"]*","seasonName":[^,]*,"stage":"[^"]*","status":"[^"]*","homeTeam":\{"id":"[^"]*","name":"([^"]+)".*?"awayTeam":\{"id":"[^"]*","name":"([^"]+)"[\s\S]*?"matchDatetime":"([^"]*)"[\s\S]*?"postponed":(true|false)[\s\S]*?"week":(\d+)/g;
 
   const fixtures = [];
   const seenInRun = new Set();
   let m;
   while ((m = fixtureRe.exec(json)) !== null) {
-    const [, home, away, matchDatetime, postponed] = m;
+    const [, home, away, matchDatetime, postponed, week] = m;
+    // Only keep fixtures that belong to the target round. Postponed matches
+    // from other rounds (shown in the "Przełożone" accordion) are skipped.
+    if (effectiveMatchday != null && Number(week) !== effectiveMatchday) {
+      console.log(`SKIP (week ${week} ≠ ${effectiveMatchday}): ${home} vs ${away}`);
+      continue;
+    }
     const key = `${home}|${away}`;
-    if (seenInRun.has(key)) continue; // dedupe within a single run (postponed matches may appear twice)
+    if (seenInRun.has(key)) continue; // dedupe within a single run
     seenInRun.add(key);
     fixtures.push({
       home_team: home,
