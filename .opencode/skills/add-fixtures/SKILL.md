@@ -46,14 +46,15 @@ The script:
 - loads `.env` / `.env.local` for `NEXT_PUBLIC_SUPABASE_URL` and
   `SUPABASE_SERVICE_ROLE_KEY`,
 - fetches the terminarz HTML page,
-- parses each match block (time, date, home team, away team, "Przełożony"
-  marker),
-- converts kickoff to UTC (Europe/Warsaw offset approximated: UTC+2 for
-  Apr–Oct, UTC+1 for Nov–Mar),
+- parses the embedded Next.js JSON payload (`self.__next_f` stream), which
+  contains the full fixture set for the round including postponed matches
+  that the rendered HTML hides in a collapsed "Przełożone" accordion,
+- reads each fixture's `homeTeam.name`, `awayTeam.name`, `matchDatetime`
+  (ISO with timezone offset), and `postponed` flag,
 - deduplicates against existing `fixtures` rows on
   `(home_team, away_team, matchday)` — skips any already present,
 - inserts new rows with:
-  - `status = "POSTPONED"` if the page marks the match "Przełożony",
+  - `status = "POSTPONED"` if the JSON marks the match `postponed: true`,
   - `status = "SCHEDULED"` otherwise,
   - `season` from the URL, `competition = "Ekstraklasa"`,
   - `matchday_name = "Kolejka <N>"`,
@@ -92,20 +93,28 @@ the exact stderr line and stop — do not attempt to fix the data manually.
 
 ## Edge cases
 
-- **Page structure changed** — if the script finds zero fixtures, it prints
-  `No fixtures parsed from page. Check the URL or page structure.` and exits
-  non-zero. Report this to the user and stop; do NOT hand-edit the DB.
+- **Page structure changed** — if the script finds zero fixtures (the JSON
+  payload shape changed), it prints `No fixtures parsed from page. Check the
+  URL or page structure.` and exits non-zero. Report this to the user and stop;
+  do NOT hand-edit the DB.
 - **Unknown team name** — the page always uses the canonical Ekstraklasa club
   names that match `src/lib/teams.ts`. If a parsed name doesn't match, the
   insert will still succeed (no FK constraint on team name), but the fixture
   will be invisible to the team-filtered UI. Flag any name mismatch to the
   user.
 - **Season inference** — the season (`2026-2027`) is parsed from the URL, not
-  guessed. For months Jul–Dec the first year is used; for Jan–Jun the second
-  year is used.
+  guessed. The kickoff datetime comes straight from the JSON `matchDatetime`
+  field (already ISO 8601 with timezone offset), so no Warsaw-offset
+  approximation is needed.
 - **Deduplication** — keyed on `(home_team, away_team, matchday)`. If a
   fixture was added with a different `matchday` than the script uses, it will
   be inserted again. Use the same `matchday` value across runs of the same
   round.
 - **Matchday omitted** — if the user runs the script without a matchday arg,
   the script infers it from `kolejka-<N>` in the URL.
+- **Rescheduled (postponed) matches** — the JSON lists postponed fixtures
+  twice: once in the main round view (original date, `postponed: true`) and
+  once in the "Przełożone" section (rescheduled date, `postponed: true`). The
+  script dedupes within a run on `(home_team, away_team)`, keeping the first
+  occurrence (the original-date entry). If you want the rescheduled date
+  instead, edit the fixture manually after import, or extend the script.
