@@ -63,23 +63,6 @@ if (args.length < 1) {
 const terminarzUrl = args[0];
 const matchday = args.length > 1 ? Number(args[1]) || null : null;
 
-function parseDateAndTime(dateStr, timeStr, season) {
-  // dateStr like "31.07", timeStr like "18:00"
-  // season like "2026-2027" -> use first year for months Jul-Dec, second for Jan-Jun
-  const [dd, mm] = dateStr.split(".");
-  const [y1, y2] = season.split("-");
-  let year;
-  if (mm >= "07" && mm <= "12") {
-    year = y1;
-  } else {
-    year = y2;
-  }
-  // Europe/Warsaw is UTC+2 (summer) / UTC+1 (winter). Use a fixed offset:
-  // For Jul-Oct -> UTC+2, Nov-Mar -> UTC+1. Simple approximation.
-  const offset = (mm >= "11" || mm <= "03") ? "+01:00" : "+02:00";
-  return `${year}-${mm}-${dd}T${timeStr}:00${offset}`;
-}
-
 async function main() {
   // Fetch the terminarz page
   const res = await fetch(terminarzUrl, {
@@ -106,49 +89,30 @@ async function main() {
     effectiveMatchday = mdMatch ? Number(mdMatch[1]) : null;
   }
 
-  // Parse matches: each match block has time, date, home team, away team, and
-  // optionally "Przełożony" marker.
+  // Parse fixtures from the embedded Next.js JSON (self.__next_f stream).
+  // This is far more reliable than scraping rendered HTML: it captures every
+  // fixture in the round, including postponed matches that live in a hidden
+  // "Przełożone" accordion section that the visible HTML omits.
   //
-  // The page structure (per analysis):
-  //   <span class="label-small-bold ...">HH:MM</span> ... <span ...>DD.MM</span>
-  //   [<span ...>Przełożony</span>]
-  //   ... <img alt="Home Team" class="size-full object-contain" ... />
-  //   ... <img alt="Away Team" class="size-full object-contain" ... />
-
-  // Find each time/date block and the following two team images.
-  const timeDateRe =
-    /label-small-bold[^>]*text-\[var\(--global-text-primary\)\] uppercase">(\d{2}:\d{2})<\/span>.*?uppercase">(\d{2}\.\d{2})<\/span>([\s\S]*?)(?=label-small-bold[^>]*text-\[var\(--global-text-primary\)\] uppercase">\d{2}:\d{2}<\/span|$)/g;
-
-  const teamImgRe = /alt="([^"]+)"[^>]*class="size-full object-contain"/g;
+  // The JSON is escaped inside the __next_f payloads (quotes appear as \"),
+  // so we unescape backslash-quotes first, then scan for fixture objects.
+  const json = html.split('\\"').join('"');
+  const fixtureRe =
+    /"homeTeam":\{"id":"[^"]*","name":"([^"]+)".*?"awayTeam":\{"id":"[^"]*","name":"([^"]+)".*?"matchDatetime":"([^"]*)".*?"postponed":(true|false)/g;
 
   const fixtures = [];
+  const seenInRun = new Set();
   let m;
-  while ((m = timeDateRe.exec(html)) !== null) {
-    const time = m[1];
-    const date = m[2];
-    const block = m[3];
-    const postponed = /Przełożony/.test(block.slice(0, 600));
-
-    // Find the first two team images in this block
-    const teams = [];
-    let tm;
-    teamImgRe.lastIndex = 0;
-    let searchBlock = block;
-    while ((tm = teamImgRe.exec(searchBlock)) !== null && teams.length < 2) {
-      teams.push(tm[1]);
-    }
-    if (teams.length < 2) {
-      // Try scanning the entire block up to next time marker
-      // (fallback in case team imgs come right at the boundary)
-      continue;
-    }
-    const [home, away] = teams;
-    const utcDate = parseDateAndTime(date, time, season);
+  while ((m = fixtureRe.exec(json)) !== null) {
+    const [, home, away, matchDatetime, postponed] = m;
+    const key = `${home}|${away}`;
+    if (seenInRun.has(key)) continue; // dedupe within a single run (postponed matches may appear twice)
+    seenInRun.add(key);
     fixtures.push({
       home_team: home,
       away_team: away,
-      utc_date: utcDate,
-      postponed,
+      utc_date: matchDatetime,
+      postponed: postponed === "true",
     });
   }
 
