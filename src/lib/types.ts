@@ -1,4 +1,4 @@
-export type FixtureStatus = "SCHEDULED" | "TIMED" | "IN_PLAY" | "FINISHED" | "CANCELLED";
+export type FixtureStatus = "SCHEDULED" | "TIMED" | "IN_PLAY" | "FINISHED" | "POSTPONED";
 
 export interface Fixture {
   id: number;

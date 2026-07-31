@@ -25,7 +25,7 @@ create table if not exists public.fixtures (
   home_team_crest text,
   away_team_crest text,
   utc_date        timestamptz not null,
-  status          text not null default 'SCHEDULED', -- SCHEDULED | IN_PLAY | FINISHED
+  status          text not null default 'SCHEDULED', -- SCHEDULED | IN_PLAY | FINISHED | POSTPONED
   home_score      int,
   away_score      int,
   created_at      timestamptz not null default now(),
@@ -294,7 +294,7 @@ begin
   select home_score, away_score, status into v_home, v_away, v_status
   from public.fixtures where id = f_fixture_id;
 
-  if v_status = 'CANCELLED' then
+  if v_status = 'POSTPONED' then
     update public.predictions set points = null where fixture_id = f_fixture_id;
     return;
   end if;

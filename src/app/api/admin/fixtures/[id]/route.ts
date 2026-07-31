@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth";
 import type { FixtureStatus } from "@/lib/types";
 
-const VALID_STATUSES: FixtureStatus[] = ["SCHEDULED", "IN_PLAY", "FINISHED", "CANCELLED"];
+const VALID_STATUSES: FixtureStatus[] = ["SCHEDULED", "IN_PLAY", "FINISHED", "POSTPONED"];
 
 export async function PATCH(
   request: Request,

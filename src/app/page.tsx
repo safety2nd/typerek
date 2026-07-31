@@ -70,8 +70,8 @@ function LockedCard({ fixture }: { fixture: FixtureWithPrediction }) {
       <div className="flex items-center justify-between text-xs text-zinc-500 mb-2">
         <span>{fixture.matchday_name ?? `Kolejka ${fixture.matchday ?? ""}`}</span>
         <span>
-          {fixture.status === "CANCELLED"
-            ? "Anulowany"
+          {fixture.status === "POSTPONED"
+            ? "Przełożony"
             : fixture.status === "FINISHED"
               ? `PW ${fixture.home_score ?? 0}-${fixture.away_score ?? 0}`
               : formatDateTime(fixture.utc_date)}
