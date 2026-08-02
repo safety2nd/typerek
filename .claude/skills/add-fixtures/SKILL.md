@@ -84,6 +84,62 @@ many were inserted vs skipped, and call out any postponed fixtures. Do not
 dump the script source or re-explain the schema. If the script errors, surface
 the exact stderr line and stop — do not attempt to fix the data manually.
 
+## Step 4 — Arm T-45 prediction routines
+
+After a successful import, arm one cloud routine per newly imported fixture so
+the predict agent runs ~45 minutes before each kickoff. Do this automatically —
+the user does not need to ask.
+
+Get the plan (DB read + time arithmetic) from:
+
+```bash
+node scripts/plan-predict-routines.mjs --matchday <N> --json
+```
+
+It returns `{ lead_minutes, plan[], skipped[] }`. Each `plan` entry carries
+`routine_name`, `run_once_at` (kickoff minus 46 min, UTC), `home_team`,
+`away_team`, `kickoff_local`, `kickoff_utc`, `kickoff_date_pl` and
+`matchday_name`. `POSTPONED` fixtures and any match whose T-45 has already
+passed are excluded automatically.
+
+Then, for each entry:
+
+1. Load the API tool once: `ToolSearch` with `select:RemoteTrigger`.
+2. Check for duplicates: `RemoteTrigger {action: "list"}` and skip any entry
+   whose `routine_name` already exists (re-running the import must not create
+   a second routine for the same match).
+3. Create it: `RemoteTrigger {action: "create", body: {...}}` with
+   - `name`: the entry's `routine_name`
+   - `run_once_at`: the entry's `run_once_at`
+   - `job_config.ccr.environment_id`: `env_017EKD6PRc5z4ekWBH6M1eWD`
+   - `job_config.ccr.session_context`: model `claude-sonnet-5`, source
+     `https://github.com/safety2nd/typerek`, `allowed_tools`
+     `["Bash","Read","Glob","Grep","WebSearch","WebFetch","Skill","mcp__Gmail__create_draft"]`
+   - `mcp_connections`: the Gmail connector (`connector_uuid`
+     `6c922e18-a5a8-45ee-97cf-7a9a4df6148b`, name `Gmail`, url
+     `https://gmailmcp.googleapis.com/mcp/v1`)
+   - `events[0].data.message.content`: `prompts/t45-predict.md` with its
+     `{{...}}` placeholders substituted from the entry. Generate a fresh
+     lowercase v4 UUID for `events[0].data.uuid`.
+
+Report each armed routine to the user as `<home> vs <away> — <fire time>
+Warsaw` plus its `https://claude.ai/code/routines/<id>` link.
+
+**Why routine creation is not scripted:** the remote-trigger API's OAuth token
+is injected in-process by the `RemoteTrigger` tool and is never exposed to the
+shell, so a `.mjs` script cannot call it. The script does the parts it can
+(query, timezone math, dedupe input); the tool calls stay here.
+
+**Constraints worth remembering:**
+
+- Cloud routines cannot reach Supabase — no `.env.local`, and the `fixtures`
+  RLS policy in `supabase/schema.sql` requires an authenticated role, so the
+  anon key returns `[]`. That is why the fixture is baked into the prompt.
+- Recurring cron routines have a 1-hour minimum interval, so a T-45 poller is
+  impossible; only `run_once_at` hits an exact time.
+- Routines can be disabled or updated via the API but **not deleted** — that
+  only works at https://claude.ai/code/routines.
+
 ## Postponed-match workflow
 
 - Postponed fixtures are inserted with `status = "POSTPONED"`. Predictions on
