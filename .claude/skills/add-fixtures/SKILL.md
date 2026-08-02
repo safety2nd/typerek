@@ -112,7 +112,7 @@ Then, for each entry:
    - `name`: the entry's `routine_name`
    - `run_once_at`: the entry's `run_once_at`
    - `job_config.ccr.environment_id`: `env_017EKD6PRc5z4ekWBH6M1eWD`
-   - `job_config.ccr.session_context`: model `claude-sonnet-5`, source
+   - `job_config.ccr.session_context`: model `claude-opus-5`, source
      `https://github.com/safety2nd/typerek`, `allowed_tools`
      `["Bash","Read","Glob","Grep","WebSearch","WebFetch","Skill","mcp__Gmail__create_draft"]`
    - `mcp_connections`: the Gmail connector (`connector_uuid`
@@ -139,6 +139,15 @@ shell, so a `.mjs` script cannot call it. The script does the parts it can
   impossible; only `run_once_at` hits an exact time.
 - Routines can be disabled or updated via the API but **not deleted** — that
   only works at https://claude.ai/code/routines.
+- **Reasoning effort is not configurable.** `session_context` persists only
+  `model`, `sources` and `allowed_tools`; every other key is silently dropped
+  from the stored config with no error (verified 2026-08-02 against `effort`,
+  `reasoning_effort`, `output_config.effort`, `thinking` and
+  `max_thinking_tokens`). The routine runs the Claude Code harness, whose
+  default effort on Opus 5 is `xhigh`, so runs get that level by inheritance —
+  there is just no field to pin it. Do not try to encode it in the model string
+  (e.g. `claude-opus-5[xhigh]`): unknown strings are stored unvalidated, so a
+  bad guess fails at fire time, after the kickoff window has passed.
 
 ## Postponed-match workflow
 
