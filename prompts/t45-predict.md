@@ -7,7 +7,13 @@ routine's user message (see `.claude/skills/add-fixtures/SKILL.md`, Step 4).
 
 Placeholders: `{{home_team}}`, `{{away_team}}`, `{{kickoff_local}}`,
 `{{kickoff_utc}}`, `{{kickoff_date_pl}}`, `{{matchday_name}}`, `{{app_url}}`
-(from `NEXT_PUBLIC_APP_URL`), `{{ai_secret}}` (from `AI_PREDICTIONS_SECRET`).
+(from `PRODUCTION_APP_URL` — never `NEXT_PUBLIC_APP_URL`, which points at
+localhost in dev), `{{ai_secret}}` (from `AI_PREDICTIONS_SECRET`).
+
+Set `model` to `<model id>-t45` (e.g. `claude-opus-5-t45`) so T-45 picks form
+their own series in `ai_predictions`, separate from whole-round `/predict`
+runs. The unique key is (fixture_id, model), so both coexist per fixture and
+can be compared against each other.
 
 Note: `{{ai_secret}}` is baked into the routine's stored prompt on claude.ai.
 That is the only way a cloud routine can authenticate — it has no env vars and

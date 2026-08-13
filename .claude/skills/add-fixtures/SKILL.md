@@ -120,9 +120,11 @@ Then, for each entry:
      `https://gmailmcp.googleapis.com/mcp/v1`)
    - `events[0].data.message.content`: `prompts/t45-predict.md` with its
      `{{...}}` placeholders substituted from the entry. `{{app_url}}` and
-     `{{ai_secret}}` come from `NEXT_PUBLIC_APP_URL` and
+     `{{ai_secret}}` come from `PRODUCTION_APP_URL` and
      `AI_PREDICTIONS_SECRET` in `.env.local` — read them locally and
      substitute them in; the routine cannot read `.env.local` itself.
+     Use `PRODUCTION_APP_URL`, **not** `NEXT_PUBLIC_APP_URL` — the latter is
+     `http://localhost:3000` for local dev and a cloud routine cannot reach it.
      Generate a fresh lowercase v4 UUID for `events[0].data.uuid`.
 
 Report each armed routine to the user as `<home> vs <away> — <fire time>
