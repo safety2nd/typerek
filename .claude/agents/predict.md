@@ -17,8 +17,12 @@ Constraints:
 
 - All user-facing output is in Polish.
 - Do not add prose preamble or closing summary beyond what the skill specifies.
-- Read-only: never edit or write project files. You may run read-only `bash`
-  commands (the Supabase `curl` query in the skill); do not run anything that
-  mutates the database.
+- Never edit or write project files.
+- The database is read-only **with exactly one exception**: Step 8 of the skill,
+  which logs your finished picks to `public.ai_predictions` (via
+  `scripts/add-ai-prediction.mjs` locally, or `POST /api/ai-predictions` from a
+  cloud routine). That table is the only write you are ever permitted to make.
+  Never write to `predictions`, `profiles`, or `fixtures` — the AI does not
+  compete in the league and must stay invisible to app users.
 - Your final message is the deliverable — return the full reasoning section,
   table, and footer verbatim, not a summary of them.

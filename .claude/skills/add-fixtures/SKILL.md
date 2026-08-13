@@ -119,8 +119,11 @@ Then, for each entry:
      `6c922e18-a5a8-45ee-97cf-7a9a4df6148b`, name `Gmail`, url
      `https://gmailmcp.googleapis.com/mcp/v1`)
    - `events[0].data.message.content`: `prompts/t45-predict.md` with its
-     `{{...}}` placeholders substituted from the entry. Generate a fresh
-     lowercase v4 UUID for `events[0].data.uuid`.
+     `{{...}}` placeholders substituted from the entry. `{{app_url}}` and
+     `{{ai_secret}}` come from `NEXT_PUBLIC_APP_URL` and
+     `AI_PREDICTIONS_SECRET` in `.env.local` — read them locally and
+     substitute them in; the routine cannot read `.env.local` itself.
+     Generate a fresh lowercase v4 UUID for `events[0].data.uuid`.
 
 Report each armed routine to the user as `<home> vs <away> — <fire time>
 Warsaw` plus its `https://claude.ai/code/routines/<id>` link.

@@ -6,7 +6,12 @@ The prompt body sent to a one-off cloud routine that predicts a single fixture
 routine's user message (see `.claude/skills/add-fixtures/SKILL.md`, Step 4).
 
 Placeholders: `{{home_team}}`, `{{away_team}}`, `{{kickoff_local}}`,
-`{{kickoff_utc}}`, `{{kickoff_date_pl}}`, `{{matchday_name}}`.
+`{{kickoff_utc}}`, `{{kickoff_date_pl}}`, `{{matchday_name}}`, `{{app_url}}`
+(from `NEXT_PUBLIC_APP_URL`), `{{ai_secret}}` (from `AI_PREDICTIONS_SECRET`).
+
+Note: `{{ai_secret}}` is baked into the routine's stored prompt on claude.ai.
+That is the only way a cloud routine can authenticate — it has no env vars and
+no `.env.local`. Rotate `AI_PREDICTIONS_SECRET` and re-arm if it ever leaks.
 
 ---
 
@@ -29,8 +34,17 @@ KROKI:
 
 3. Wyjście (po polsku, zgodnie ze skillem): sekcja rozumowania dla tego jednego meczu (Forma / H2H / Nieobecności / Dom-wyjazd i kontekst / Odczyt / Przewidywany wynik), następnie tabela podsumowująca z jednym wierszem (Gospodarz | Gość | Kickoff | Typ | Pewność | Czynnik decydujący), następnie stopka.
 
-4. Na koniec utwórz wersję roboczą maila w Gmailu (create_draft) do aszypulski@safety2nd.com:
+4. Zapisz swój typ do prywatnego logu predykcji (bez żadnego wyjścia dla użytkownika). Nie masz dostępu do Supabase, więc użyj endpointu aplikacji:
+
+   curl -sS -X POST "{{app_url}}/api/ai-predictions" \
+     -H "Authorization: Bearer {{ai_secret}}" \
+     -H "Content-Type: application/json" \
+     -d '[{"home":"{{home_team}}","away":"{{away_team}}","home_score":<H>,"away_score":<A>,"confidence":"<Wysoka|Średnia|Niska>","rationale":"<czynnik decydujący>","model":"<id modelu>"}]'
+
+   `<H>` i `<A>` to liczby z Twojego typu. Jeśli zapis się nie powiedzie, dopisz jedną linijkę po stopce i kontynuuj — nie przerywaj z tego powodu.
+
+5. Na koniec utwórz wersję roboczą maila w Gmailu (create_draft) do aszypulski@safety2nd.com:
    - temat: "Typerek T-45: {{home_team}} vs {{away_team}} — <TYP>" (gdzie <TYP> to przewidywany wynik, np. 1-1)
    - body: pełna treść przewidywania (rozumowanie + tabela + stopka)
 
-OGRANICZENIA: tryb tylko-do-odczytu. Nie modyfikuj plików repozytorium, nie commituj, nie pushuj, nie zapisuj niczego do bazy danych.
+OGRANICZENIA: nie modyfikuj plików repozytorium, nie commituj, nie pushuj. Jedyny dozwolony zapis to krok 4 (POST na /api/ai-predictions, tabela `ai_predictions`). Nie zapisuj niczego innego do bazy — w szczególności nie do `predictions` ani `profiles`.
