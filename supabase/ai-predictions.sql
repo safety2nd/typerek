@@ -37,6 +37,12 @@ alter table public.ai_predictions force row level security;
 
 revoke all on public.ai_predictions from anon, authenticated;
 
+-- NOTE for disaster recovery: scripts/backup.sh runs pg_dump with
+-- --no-privileges, which strips GRANT/REVOKE from the dump. The RLS lines
+-- above ARE dumped (they are schema, not ACLs), so a restored table still
+-- returns zero rows to anon/authenticated — but the REVOKE belt-and-braces
+-- layer is not. Re-run this file after any restore; it is idempotent.
+
 -- updated_at maintenance (reuses the helper from schema.sql)
 drop trigger if exists trg_ai_predictions_updated on public.ai_predictions;
 create trigger trg_ai_predictions_updated before update on public.ai_predictions
