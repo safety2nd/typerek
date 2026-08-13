@@ -30,8 +30,15 @@ For each fixture below, search the web for current evidence and produce:
 3. A confidence level (High / Medium / Low) with a one-line reason.
 4. The single most decisive factor.
 
-Scoring rules I play with (for context, do not optimize for outcome-only):
-exact score = 3 pts, correct outcome (home win / draw / away win) = 1 pt, else 0.
+Scoring rules I play with (for context, do not optimize for outcome-only).
+Mirrors `public.score_fixture` in `supabase/schema.sql`:
+- exact score = 3 pts (the max; no goal bonuses added on top)
+- correct outcome (home win / draw / away win) = 1 pt
+  + 0.25 pt per correctly predicted team goal count (home and/or away)
+- wrong outcome = 0 pts + 0.25 pt per correctly predicted team goal count
+
+Partial credit means a missed prediction is not worthless — prefer common
+per-team goal counts (0, 1, 2) over exotic scorelines.
 
 ## FIXTURES (paste the SQL output here, one fixture per line)
 {{FIXTURES}}

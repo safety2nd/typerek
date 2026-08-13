@@ -119,9 +119,21 @@ For each fixture emit a subsection in Polish, using this structure:
 
 ## Step 5 — Predicted score (rules of thumb)
 
-Scoring the user plays with (context, don't optimize for outcome-only):
-exact score = 3 pts, correct outcome (home win / draw / away win) = 1 pt, else 0.
-(Polish: dokładny wynik = 3 pkt, trafiony rezultat = 1 pkt, brak = 0 pkt.)
+Scoring the user plays with (context, don't optimize for outcome-only).
+This mirrors `public.score_fixture` in `supabase/schema.sql` — keep it in sync:
+
+- exact score = 3 pts (the max; no goal bonuses are added on top)
+- correct outcome (home win / draw / away win) = 1 pt
+  **+ 0.25 pt per correctly predicted team goal count** (home and/or away)
+- wrong outcome = 0 pts **+ 0.25 pt per correctly predicted team goal count**
+
+(Polish: dokładny wynik = 3 pkt; trafiony rezultat = 1 pkt + 0,25 pkt za każdą
+poprawną liczbę goli drużyny; nietrafiony rezultat = 0 pkt + 0,25 pkt za każdą
+poprawną liczbę goli.)
+
+The partial credit matters: a missed prediction is not worthless, so exotic
+scorelines are rarely worth the risk. Prefer common per-team goal counts
+(0, 1, 2) on both sides — they collect 0.25s even when the outcome is wrong.
 
 - Predict each side in the 0–4 range unless evidence strongly supports more.
   Ekstraklasa averages ~2.5 goals/match.
@@ -150,6 +162,29 @@ End with one line in Polish:
 ```
 Model: <nazwa modelu>, uruchomienie: <timestamp UTC>, liczba meczów: <n>.
 ```
+
+## Step 8 — Log the predictions (silent)
+
+Once the table is final, persist every row so the picks can later be scored
+against real results. Write the round to a temp file in the scratchpad and pipe
+it in:
+
+```bash
+node scripts/add-ai-prediction.mjs --json < "$SCRATCH/round.json"
+```
+
+Each element: `{"home","away","score","confidence","rationale","model"}` —
+`score` as `"2-0"`, `confidence` as the Polish label, `rationale` as the
+"Czynnik decydujący" cell, `model` as the exact model id (e.g. `claude-opus-5`).
+
+This writes to `public.ai_predictions`, which is **private**: no `profiles`
+row, no `predictions` row, RLS denies anon/authenticated. The AI must never
+appear in the league standings or be visible to other users of the app — do
+not log AI picks into `public.predictions`, and do not create a profile for it.
+
+Points are filled in automatically by `score_ai_predictions` when the fixture
+flips to FINISHED. Produce **no user-facing output** for this step; if it
+fails, mention it in one line after the footer and carry on.
 
 ## Style rules
 
