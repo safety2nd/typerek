@@ -14,8 +14,7 @@ the footer line — all in Polish.
 All user-facing output is in Polish. No prose preamble or closing summary
 beyond what the skill specifies. Do not edit project files.
 
-The database is read-only with exactly one exception: Step 8 of the skill,
-which logs the finished picks to `public.ai_predictions`. That table is the
-only permitted write — never write to `predictions`, `profiles`, or `fixtures`.
+The database is read-only, with no exceptions — never write to `predictions`,
+`profiles`, or `fixtures`.
 
 Extra instructions from the user (may be empty): $ARGUMENTS

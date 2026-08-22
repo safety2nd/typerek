@@ -163,43 +163,16 @@ End with one line in Polish:
 Model: <nazwa modelu>, uruchomienie: <timestamp UTC>, liczba meczów: <n>.
 ```
 
-## Step 8 — Log the predictions (silent)
+## Step 8 — Do not log anything
 
-Once the table is final, persist every row so the picks can later be scored
-against real results. Which path you take depends on where you are running:
+There is no prediction log. `/predict` is read-only: it queries fixtures and
+emits the reasoning, table and footer, and that is all. The `ai_predictions`
+write path (`scripts/add-ai-prediction.mjs` and `POST /api/ai-predictions`)
+was removed on 2026-08-20 — the table still holds its historical rows, but
+nothing writes to it any more.
 
-**Locally** (repo checked out, `.env.local` present) — write the round to a
-temp file in the scratchpad and pipe it in:
-
-```bash
-node scripts/add-ai-prediction.mjs --json < "$SCRATCH/round.json"
-```
-
-**From a cloud routine** (no repo, no `.env.local`, no service-role key —
-Supabase is unreachable directly) — POST to the app instead:
-
-```bash
-curl -sS -X POST "$APP_URL/api/ai-predictions" \
-  -H "Authorization: Bearer $AI_PREDICTIONS_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '[{"home":"...","away":"...","home_score":2,"away_score":0,
-        "confidence":"Wysoka","rationale":"...","model":"claude-opus-5"}]'
-```
-
-Both paths take the same fields. `confidence` is the Polish label
-(Wysoka/Średnia/Niska), `rationale` is the "Czynnik decydujący" cell, `model`
-is the exact model id. The script form takes `score` as `"2-0"`; the HTTP form
-takes `home_score`/`away_score` as integers.
-
-`public.ai_predictions` is **private**: no `profiles` row, no `predictions`
-row, RLS denies anon/authenticated. It is the only table this skill may write
-to. The AI must never appear in the league standings or be visible to other
-users of the app — do not log AI picks into `public.predictions`, and do not
-create a profile for it.
-
-Points are filled in automatically by `score_ai_predictions` when the fixture
-flips to FINISHED. Produce **no user-facing output** for this step; if it
-fails, mention it in one line after the footer and carry on.
+Never write to `predictions` or `profiles`: the AI does not compete in the
+league and must stay invisible to app users.
 
 ## Style rules
 

@@ -30,10 +30,7 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname === "/login" || pathname.startsWith("/login");
-  // /api/ai-predictions guards itself with a bearer secret (AI_PREDICTIONS_SECRET)
-  // because cloud routines have no Supabase session to authenticate with.
-  const isPublicApi =
-    pathname.startsWith("/api/health") || pathname.startsWith("/api/ai-predictions");
+  const isPublicApi = pathname.startsWith("/api/health");
 
   if (!user && !isAuthRoute && !isPublicApi) {
     const url = request.nextUrl.clone();

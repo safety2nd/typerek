@@ -119,12 +119,11 @@ Then, for each entry:
      `6c922e18-a5a8-45ee-97cf-7a9a4df6148b`, name `Gmail`, url
      `https://gmailmcp.googleapis.com/mcp/v1`)
    - `events[0].data.message.content`: `prompts/t45-predict.md` with its
-     `{{...}}` placeholders substituted from the entry. `{{app_url}}` and
-     `{{ai_secret}}` come from `PRODUCTION_APP_URL` and
-     `AI_PREDICTIONS_SECRET` in `.env.local` — read them locally and
-     substitute them in; the routine cannot read `.env.local` itself.
-     Use `PRODUCTION_APP_URL`, **not** `NEXT_PUBLIC_APP_URL` — the latter is
-     `http://localhost:3000` for local dev and a cloud routine cannot reach it.
+     `{{...}}` placeholders substituted from the entry. Every placeholder is
+     fixture data from the plan output — **never put a credential in a routine
+     prompt.** A routine's prompt is stored in plaintext on claude.ai and
+     cannot be deleted through the API, so a secret pasted in there is exposed
+     for good and can only be revoked by rotating it at its source.
      Generate a fresh lowercase v4 UUID for `events[0].data.uuid`.
 
 Report each armed routine to the user as `<home> vs <away> — <fire time>
@@ -140,6 +139,9 @@ shell, so a `.mjs` script cannot call it. The script does the parts it can
 - Cloud routines cannot reach Supabase — no `.env.local`, and the `fixtures`
   RLS policy in `supabase/schema.sql` requires an authenticated role, so the
   anon key returns `[]`. That is why the fixture is baked into the prompt.
+- A T-45 run writes nothing. The AI prediction log was retired on 2026-08-20
+  (endpoint, local script and both prompt steps removed), so a run's only
+  outputs are its message in the Claude app and a Gmail draft.
 - Recurring cron routines have a 1-hour minimum interval, so a T-45 poller is
   impossible; only `run_once_at` hits an exact time.
 - Routines can be disabled or updated via the API but **not deleted** — that
