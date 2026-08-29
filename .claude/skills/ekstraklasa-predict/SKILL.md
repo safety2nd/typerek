@@ -137,10 +137,25 @@ scorelines are rarely worth the risk. Prefer common per-team goal counts
 
 - Predict each side in the 0–4 range unless evidence strongly supports more.
   Ekstraklasa averages ~2.5 goals/match.
-- If two teams are close, prefer the home side by a goal; predict an away win
-  only with Medium+ confidence and a stated reason.
-- 0-0 is rare — only when both teams are defensively strong AND offensively
-  weak; cite both.
+
+**Never type a drawn scoreline other than 0-0.** 1-1 in particular is a trap:
+it has the highest exact-score probability of any single scoreline (~12.6% at
+typical Ekstraklasa scoring rates), but it is still EV-dominated by 1-0 and
+0-1 at every realistic goal rate. The 1 pt outcome credit does the work, and a
+draw bets on a ~26% bucket while either side winning is a ~35–46% bucket.
+Worked example at 1.3 goals/side: 1-1 scores 0.63 expected pts, 1-0 scores
+0.67. The gap widens as expected goals rise.
+
+- A genuine coin-flip is still typed as a **one-goal win**, not a draw. Pick
+  the side the evidence puts marginally ahead — home advantage is the default
+  tiebreaker, but a one-goal away win needs only a stated reason, not high
+  confidence. Reserve the Medium+ confidence bar for away wins by 2+ goals, or
+  for calling against a home side the evidence actually favours.
+- Low confidence is a reason to keep the scoreline common (0/1/2 per side),
+  never a reason to retreat to a draw.
+- 0-0 is the sole exception, and it is rare: only when both teams are
+  defensively strong AND offensively weak — roughly under 1.6 total expected
+  goals — and cite both halves of that.
 - Confidence = High only when form, H2H, and absences all point the same way.
   Otherwise Medium or Low with a one-line reason.
   (Polish confidence labels: Wysoka / Średnia / Niska.)
