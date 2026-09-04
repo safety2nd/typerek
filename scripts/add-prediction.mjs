@@ -91,7 +91,7 @@ if (fixture.status === "FINISHED") {
 }
 
 // Upsert prediction (service role bypasses RLS and the block_points_tamper trigger)
-const { ok: upOk, body: upBody } = await api(`/rest/v1/predictions`, {
+const { ok: upOk, body: upBody } = await api(`/rest/v1/predictions?on_conflict=user_id,fixture_id`, {
   method: "POST",
   headers: { Prefer: "resolution=merge-duplicates,return=representation" },
   body: JSON.stringify({
