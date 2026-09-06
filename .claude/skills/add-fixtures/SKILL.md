@@ -108,23 +108,45 @@ Then, for each entry:
 2. Check for duplicates: `RemoteTrigger {action: "list"}` and skip any entry
    whose `routine_name` already exists (re-running the import must not create
    a second routine for the same match).
-3. Create it: `RemoteTrigger {action: "create", body: {...}}` with
-   - `name`: the entry's `routine_name`
-   - `run_once_at`: the entry's `run_once_at`
-   - `job_config.ccr.environment_id`: `env_017EKD6PRc5z4ekWBH6M1eWD`
-   - `job_config.ccr.session_context`: model `claude-opus-5`, source
-     `https://github.com/safety2nd/typerek`, `allowed_tools`
-     `["Bash","Read","Glob","Grep","WebSearch","WebFetch","Skill","mcp__Gmail__create_draft"]`
-   - `mcp_connections`: the Gmail connector (`connector_uuid`
-     `6c922e18-a5a8-45ee-97cf-7a9a4df6148b`, name `Gmail`, url
-     `https://gmailmcp.googleapis.com/mcp/v1`)
-   - `events[0].data.message.content`: `prompts/t45-predict.md` with its
-     `{{...}}` placeholders substituted from the entry. Every placeholder is
-     fixture data from the plan output — **never put a credential in a routine
-     prompt.** A routine's prompt is stored in plaintext on claude.ai and
-     cannot be deleted through the API, so a secret pasted in there is exposed
-     for good and can only be revoked by rotating it at its source.
-     Generate a fresh lowercase v4 UUID for `events[0].data.uuid`.
+3. Create it: `RemoteTrigger {action: "create", body: {...}}`. The body shape
+   below is exact — note that `events` lives **inside** `job_config.ccr` (not at
+   the top level) and each `sources` entry is a `{git_repository: {url}}`
+   wrapper, not a bare URL string. A bare URL is rejected with
+   `translate job_config v1→v2: … proto: syntax error`.
+
+   ```json
+   {
+     "name": "<routine_name>",
+     "run_once_at": "<run_once_at>",
+     "mcp_connections": [{
+       "connector_uuid": "6c922e18-a5a8-45ee-97cf-7a9a4df6148b",
+       "name": "Gmail",
+       "url": "https://gmailmcp.googleapis.com/mcp/v1"
+     }],
+     "job_config": {"ccr": {
+       "environment_id": "env_017EKD6PRc5z4ekWBH6M1eWD",
+       "session_context": {
+         "model": "claude-opus-5",
+         "allowed_tools": ["Bash","Read","Glob","Grep","WebSearch","WebFetch","Skill","mcp__Gmail__create_draft"],
+         "sources": [{"git_repository": {"url": "https://github.com/safety2nd/typerek"}}]
+       },
+       "events": [{"data": {
+         "type": "user",
+         "session_id": "",
+         "parent_tool_use_id": null,
+         "uuid": "<fresh lowercase v4 UUID>",
+         "message": {"role": "user", "content": "<prompt>"}
+       }}]
+     }}
+   }
+   ```
+
+   `<prompt>` is `prompts/t45-predict.md` with its `{{...}}` placeholders
+   substituted from the entry. Every placeholder is fixture data from the plan
+   output — **never put a credential in a routine prompt.** A routine's prompt
+   is stored in plaintext on claude.ai and cannot be deleted through the API, so
+   a secret pasted in there is exposed for good and can only be revoked by
+   rotating it at its source.
 
 Report each armed routine to the user as `<home> vs <away> — <fire time>
 Warsaw` plus its `https://claude.ai/code/routines/<id>` link.
