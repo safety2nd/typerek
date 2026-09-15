@@ -12,48 +12,16 @@
  * - Marks postponed fixtures with status "POSTPONED".
  * - Schedules fixtures get status "SCHEDULED".
  *
+ * This only ever INSERTS. A fixture already in the table is skipped, so a
+ * kickoff that moves after import is not corrected here — use
+ * `scripts/sync-fixture-dates.mjs` for that.
+ *
  * Auto-loads .env / .env.local from the project root.
  */
-import { readFileSync, existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { supabaseRest } from "./lib/env.mjs";
+import { fetchRoundFixtures, seasonFromUrl } from "./lib/ekstraklasa.mjs";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const projectRoot = join(__dirname, "..");
-
-for (const file of [".env", ".env.local"]) {
-  const p = join(projectRoot, file);
-  if (!existsSync(p)) continue;
-  for (const line of readFileSync(p, "utf8").split("\n")) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/i);
-    if (!m) continue;
-    const [, k, v] = m;
-    if (process.env[k] === undefined) process.env[k] = v.replace(/^["']|["']$/g, "");
-  }
-}
-
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!url || !serviceKey) {
-  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(1);
-}
-
-const base = url.replace(/\/$/, "");
-const headers = {
-  apikey: serviceKey,
-  Authorization: `Bearer ${serviceKey}`,
-  "Content-Type": "application/json",
-};
-
-async function api(path, init = {}) {
-  const res = await fetch(`${base}${path}`, {
-    ...init,
-    headers: { ...headers, ...(init.headers ?? {}) },
-  });
-  const body = await res.json().catch(() => null);
-  return { ok: res.ok, status: res.status, body };
-}
+const api = supabaseRest();
 
 const args = process.argv.slice(2);
 if (args.length < 1) {
@@ -64,84 +32,37 @@ const terminarzUrl = args[0];
 const matchday = args.length > 1 ? Number(args[1]) || null : null;
 
 async function main() {
-  // Fetch the terminarz page
-  const res = await fetch(terminarzUrl, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; typerek-bot)" },
-  });
-  if (!res.ok) {
-    console.error(`Failed to fetch ${terminarzUrl}: ${res.status}`);
-    process.exit(1);
-  }
-  const html = await res.text();
-
-  // Extract season from URL: /terminarz/2026-2027/kolejka-2/
-  const seasonMatch = terminarzUrl.match(/\/terminarz\/(\d{4}-\d{4})\//);
-  const season = seasonMatch ? seasonMatch[1] : null;
+  const season = seasonFromUrl(terminarzUrl);
   if (!season) {
     console.error("Could not parse season from URL. Expected format: .../2026-2027/kolejka-N/");
     process.exit(1);
   }
 
-  // Extract matchday from URL if not provided
   let effectiveMatchday = matchday;
   if (effectiveMatchday == null) {
     const mdMatch = terminarzUrl.match(/kolejka-(\d+)/);
     effectiveMatchday = mdMatch ? Number(mdMatch[1]) : null;
   }
 
-  // Parse fixtures from the embedded Next.js JSON (self.__next_f stream).
-  // The page's JSON contains every fixture shown on the terminarz page:
-  //   - the current round's matches (in the main list)
-  //   - postponed matches from OTHER rounds that land in this date window
-  //     (shown in a collapsed "Przełożone" accordion at the bottom)
-  // Each fixture object has a `week` field identifying which round it belongs
-  // to. We keep only fixtures whose `week` matches the target matchday, so
-  // postponed fixtures from other rounds are NOT imported as part of this
-  // round. A fixture in the current round that is itself postponed stays
-  // (postponed=true) and is inserted with status POSTPONED.
-  //
-  // The JSON is escaped inside the __next_f payloads (quotes appear as \"),
-  // so we unescape backslash-quotes first.
-  const json = html.split('\\"').join('"');
-  // Match each fixture object: homeTeam.name, awayTeam.name, matchDatetime,
-  // postponed, postponedDatetime, week. The fields can appear in any order
-  // within the object, so we capture the whole object (matchId ... } before
-  // the next matchId) and pull fields out of it.
-  //
-  // `matchDatetime` always holds the ORIGINAL kickoff. When a match has been
-  // rescheduled the new kickoff lives in `postponedDatetime` and
-  // `matchDatetime` is left untouched, so a postponed fixture must be read
-  // from `postponedDatetime` or it is imported with a stale date. Once the
-  // rescheduled match has been played the two agree again.
-  const fixtureRe = /"matchId":"[^"]*","seasonId":"[^"]*","seasonName":[^,]*,"stage":"[^"]*","status":"[^"]*","homeTeam":\{"id":"[^"]*","name":"([^"]+)".*?"awayTeam":\{"id":"[^"]*","name":"([^"]+)"[\s\S]*?"matchDatetime":"([^"]*)"[\s\S]*?"postponed":(true|false),"postponedDatetime":("[^"]*"|null)[\s\S]*?"week":(\d+)/g;
+  let parsed;
+  try {
+    parsed = await fetchRoundFixtures(terminarzUrl);
+  } catch (e) {
+    console.error(e.message);
+    process.exit(1);
+  }
 
+  // Keep only fixtures belonging to the target round. The "Przełożone"
+  // accordion lists postponed matches from OTHER rounds that fall in this date
+  // window; importing those as part of this round would be wrong. A
+  // current-round fixture that is itself postponed stays.
   const fixtures = [];
-  const seenInRun = new Set();
-  let m;
-  while ((m = fixtureRe.exec(json)) !== null) {
-    const [, home, away, matchDatetime, postponed, postponedDatetimeRaw, week] = m;
-    const isPostponed = postponed === "true";
-    const postponedDatetime =
-      postponedDatetimeRaw === "null" ? null : postponedDatetimeRaw.slice(1, -1);
-    // Prefer the rescheduled kickoff; fall back to the original if the page
-    // has no new date yet.
-    const kickoff = (isPostponed && postponedDatetime) || matchDatetime;
-    // Only keep fixtures that belong to the target round. Postponed matches
-    // from other rounds (shown in the "Przełożone" accordion) are skipped.
-    if (effectiveMatchday != null && Number(week) !== effectiveMatchday) {
-      console.log(`SKIP (week ${week} ≠ ${effectiveMatchday}): ${home} vs ${away}`);
+  for (const f of parsed) {
+    if (effectiveMatchday != null && f.week !== effectiveMatchday) {
+      console.log(`SKIP (week ${f.week} ≠ ${effectiveMatchday}): ${f.home_team} vs ${f.away_team}`);
       continue;
     }
-    const key = `${home}|${away}`;
-    if (seenInRun.has(key)) continue; // dedupe within a single run
-    seenInRun.add(key);
-    fixtures.push({
-      home_team: home,
-      away_team: away,
-      utc_date: kickoff,
-      postponed: isPostponed,
-      rescheduled: isPostponed && kickoff !== matchDatetime ? matchDatetime : null,
-    });
+    fixtures.push(f);
   }
 
   if (fixtures.length === 0) {
@@ -151,8 +72,12 @@ async function main() {
 
   console.log(`Parsed ${fixtures.length} fixtures from ${terminarzUrl}:`);
   for (const f of fixtures) {
-    const note = f.rescheduled ? ` [POSTPONED, przełożony z ${f.rescheduled}]` : f.postponed ? " [POSTPONED]" : "";
-    console.log(`  ${f.home_team} vs ${f.away_team} @ ${f.utc_date}${note}`);
+    const note = f.original_kickoff
+      ? ` [POSTPONED, przełożony z ${f.original_kickoff}]`
+      : f.postponed
+        ? " [POSTPONED]"
+        : "";
+    console.log(`  ${f.home_team} vs ${f.away_team} @ ${f.kickoff}${note}`);
   }
 
   // Fetch existing fixtures with the same matchday to deduplicate
@@ -182,7 +107,7 @@ async function main() {
         id,
         home_team: f.home_team,
         away_team: f.away_team,
-        utc_date: f.utc_date,
+        utc_date: f.kickoff,
         matchday: effectiveMatchday,
         matchday_name: effectiveMatchday ? `Kolejka ${effectiveMatchday}` : null,
         season,

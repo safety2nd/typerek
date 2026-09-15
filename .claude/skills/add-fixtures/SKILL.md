@@ -196,13 +196,46 @@ shell, so a `.mjs` script cannot call it. The script does the parts it can
   offset arithmetic needed. Set the new date and change status back to
   `Zaplanowany` (`SCHEDULED`), then press `Zapisz`. This re-opens it for
   predictions. Re-running `scripts/add-fixtures.mjs` will NOT update the row
-  either — it dedupes on `(home_team, away_team, matchday)` and skips anything
-  already present. The import reads the new date correctly (see below), but
-  only for rows it actually inserts.
+  — it dedupes on `(home_team, away_team, matchday)` and skips anything already
+  present. Use `scripts/sync-fixture-dates.mjs` instead (below), which exists
+  for exactly this.
 - After rescheduling, arm a T-45 routine for the fixture (Step 4) —
   `scripts/plan-predict-routines.mjs --matchday <N>` will now include it.
 - The admin dropdown now has `Przełożony` (POSTPONED) instead of the old
   `Anulowany` (CANCELLED) option.
+
+## Detecting reschedules — `sync-fixture-dates.mjs`
+
+`add-fixtures.mjs` only ever inserts, so a kickoff that moves after import
+keeps its stale date and nothing in the app surfaces that. Run the sweep to
+find and fix those:
+
+```bash
+node scripts/sync-fixture-dates.mjs                 # audit every round, writes nothing
+node scripts/sync-fixture-dates.mjs --matchday 4    # one round
+node scripts/sync-fixture-dates.mjs --apply         # audit, then apply the safe subset
+```
+
+Worth running after each round's import and whenever the user mentions a
+postponement. It sorts every difference into four buckets:
+
+- **Kickoff moved** — a real new date AND time. `--apply` writes the new
+  `utc_date`, and flips `POSTPONED` to `SCHEDULED` since the match is on again.
+- **No kickoff time yet** — the site published a date at `00:00`, which is its
+  placeholder for "time TBD" (Ekstraklasa never kicks off at midnight). Never
+  applied: setting these `SCHEDULED` would open predictions against a deadline
+  that is wrong by most of a day. They stay `POSTPONED` until a real time
+  appears.
+- **Already played** — `FINISHED` / `IN_PLAY` rows are reported but never
+  written; their kickoff is history and `score_fixture` has already run.
+- **Not found on the site** — almost always a team-name mismatch against
+  `src/lib/teams.ts`. Investigate rather than ignore.
+
+Exit codes: `0` nothing to do, `2` drift found in report mode, `1` error.
+
+After applying, arm T-45 routines for the moved fixtures (Step 4) —
+`scripts/plan-predict-routines.mjs --matchday <N>` picks them up once they are
+`SCHEDULED`.
 
 ## Edge cases
 
