@@ -50,7 +50,13 @@ The script:
   contains the complete fixture set for the round including postponed matches
   that the rendered HTML hides in a collapsed "Przełożone" accordion,
 - reads each fixture's `homeTeam.name`, `awayTeam.name`, `matchDatetime`
-  (ISO with timezone offset), `postponed` flag, and `week` (round number),
+  (ISO with timezone offset), `postponed` flag, `postponedDatetime` and `week`
+  (round number),
+- **prefers `postponedDatetime` for a postponed fixture**: `matchDatetime`
+  always holds the ORIGINAL kickoff and is never rewritten when a match moves,
+  so reading it alone imports a rescheduled match with a stale date. The two
+  agree again once the rescheduled match has been played. A fixture whose date
+  moved is logged as `[POSTPONED, przełożony z <original>]`,
 - **filters by `week`**: keeps only fixtures whose `week` matches the target
   matchday. The "Przełożone" accordion lists postponed matches from OTHER
   rounds that happen to fall in this date window — those are skipped so they
@@ -189,9 +195,10 @@ shell, so a `.mjs` script cannot call it. The script does the parts it can
   kickoff as **Europe/Warsaw wall clock** — the time the league announces, no
   offset arithmetic needed. Set the new date and change status back to
   `Zaplanowany` (`SCHEDULED`), then press `Zapisz`. This re-opens it for
-  predictions. Re-running `scripts/add-fixtures.mjs` will NOT pick the new date
-  up: ekstraklasa.org keeps listing rescheduled matches under "Przełożone" with
-  their original date, and the parser filters them out by `week` anyway.
+  predictions. Re-running `scripts/add-fixtures.mjs` will NOT update the row
+  either — it dedupes on `(home_team, away_team, matchday)` and skips anything
+  already present. The import reads the new date correctly (see below), but
+  only for rows it actually inserts.
 - After rescheduling, arm a T-45 routine for the fixture (Step 4) —
   `scripts/plan-predict-routines.mjs --matchday <N>` will now include it.
 - The admin dropdown now has `Przełożony` (POSTPONED) instead of the old

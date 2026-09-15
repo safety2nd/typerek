@@ -104,16 +104,28 @@ async function main() {
   // so we unescape backslash-quotes first.
   const json = html.split('\\"').join('"');
   // Match each fixture object: homeTeam.name, awayTeam.name, matchDatetime,
-  // week, postponed. The fields can appear in any order within the object, so
-  // we capture the whole object (matchId ... } before the next matchId) and
-  // pull fields out of it.
-  const fixtureRe = /"matchId":"[^"]*","seasonId":"[^"]*","seasonName":[^,]*,"stage":"[^"]*","status":"[^"]*","homeTeam":\{"id":"[^"]*","name":"([^"]+)".*?"awayTeam":\{"id":"[^"]*","name":"([^"]+)"[\s\S]*?"matchDatetime":"([^"]*)"[\s\S]*?"postponed":(true|false)[\s\S]*?"week":(\d+)/g;
+  // postponed, postponedDatetime, week. The fields can appear in any order
+  // within the object, so we capture the whole object (matchId ... } before
+  // the next matchId) and pull fields out of it.
+  //
+  // `matchDatetime` always holds the ORIGINAL kickoff. When a match has been
+  // rescheduled the new kickoff lives in `postponedDatetime` and
+  // `matchDatetime` is left untouched, so a postponed fixture must be read
+  // from `postponedDatetime` or it is imported with a stale date. Once the
+  // rescheduled match has been played the two agree again.
+  const fixtureRe = /"matchId":"[^"]*","seasonId":"[^"]*","seasonName":[^,]*,"stage":"[^"]*","status":"[^"]*","homeTeam":\{"id":"[^"]*","name":"([^"]+)".*?"awayTeam":\{"id":"[^"]*","name":"([^"]+)"[\s\S]*?"matchDatetime":"([^"]*)"[\s\S]*?"postponed":(true|false),"postponedDatetime":("[^"]*"|null)[\s\S]*?"week":(\d+)/g;
 
   const fixtures = [];
   const seenInRun = new Set();
   let m;
   while ((m = fixtureRe.exec(json)) !== null) {
-    const [, home, away, matchDatetime, postponed, week] = m;
+    const [, home, away, matchDatetime, postponed, postponedDatetimeRaw, week] = m;
+    const isPostponed = postponed === "true";
+    const postponedDatetime =
+      postponedDatetimeRaw === "null" ? null : postponedDatetimeRaw.slice(1, -1);
+    // Prefer the rescheduled kickoff; fall back to the original if the page
+    // has no new date yet.
+    const kickoff = (isPostponed && postponedDatetime) || matchDatetime;
     // Only keep fixtures that belong to the target round. Postponed matches
     // from other rounds (shown in the "Przełożone" accordion) are skipped.
     if (effectiveMatchday != null && Number(week) !== effectiveMatchday) {
@@ -126,8 +138,9 @@ async function main() {
     fixtures.push({
       home_team: home,
       away_team: away,
-      utc_date: matchDatetime,
-      postponed: postponed === "true",
+      utc_date: kickoff,
+      postponed: isPostponed,
+      rescheduled: isPostponed && kickoff !== matchDatetime ? matchDatetime : null,
     });
   }
 
@@ -138,7 +151,8 @@ async function main() {
 
   console.log(`Parsed ${fixtures.length} fixtures from ${terminarzUrl}:`);
   for (const f of fixtures) {
-    console.log(`  ${f.home_team} vs ${f.away_team} @ ${f.utc_date}${f.postponed ? " [POSTPONED]" : ""}`);
+    const note = f.rescheduled ? ` [POSTPONED, przełożony z ${f.rescheduled}]` : f.postponed ? " [POSTPONED]" : "";
+    console.log(`  ${f.home_team} vs ${f.away_team} @ ${f.utc_date}${note}`);
   }
 
   // Fetch existing fixtures with the same matchday to deduplicate
