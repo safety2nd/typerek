@@ -14,7 +14,12 @@ export async function PATCH(
   const fixtureId = Number(id);
   const body = await request.json().catch(() => ({}));
 
-  const patch: { home_score?: number | null; away_score?: number | null; status?: FixtureStatus } = {};
+  const patch: {
+    home_score?: number | null;
+    away_score?: number | null;
+    status?: FixtureStatus;
+    utc_date?: string;
+  } = {};
   if (body.home_score === null || (Number.isInteger(body.home_score) && body.home_score >= 0 && body.home_score <= 50)) {
     patch.home_score = body.home_score;
   }
@@ -23,6 +28,13 @@ export async function PATCH(
   }
   if (typeof body.status === "string" && VALID_STATUSES.includes(body.status as FixtureStatus)) {
     patch.status = body.status as FixtureStatus;
+  }
+  if (typeof body.utc_date === "string") {
+    const parsed = Date.parse(body.utc_date);
+    if (Number.isNaN(parsed)) {
+      return NextResponse.json({ error: "Niepoprawna data meczu" }, { status: 400 });
+    }
+    patch.utc_date = new Date(parsed).toISOString();
   }
 
   const supabase = createServiceClient();

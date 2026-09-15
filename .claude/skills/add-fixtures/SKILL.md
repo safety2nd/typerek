@@ -185,8 +185,15 @@ shell, so a `.mjs` script cannot call it. The script does the parts it can
   and `POSTPONED` fixtures are excluded from the upcoming-fixtures list in
   `src/lib/queries.ts`.
 - When the new kickoff date is confirmed, edit the fixture manually via the
-  admin UI (Admin → Mecze): set the new `utc_date` and change status back to
-  `Zaplanowany` (`SCHEDULED`). This re-opens it for predictions.
+  admin UI (Admin → Mecze). Each row has a `datetime-local` field holding the
+  kickoff as **Europe/Warsaw wall clock** — the time the league announces, no
+  offset arithmetic needed. Set the new date and change status back to
+  `Zaplanowany` (`SCHEDULED`), then press `Zapisz`. This re-opens it for
+  predictions. Re-running `scripts/add-fixtures.mjs` will NOT pick the new date
+  up: ekstraklasa.org keeps listing rescheduled matches under "Przełożone" with
+  their original date, and the parser filters them out by `week` anyway.
+- After rescheduling, arm a T-45 routine for the fixture (Step 4) —
+  `scripts/plan-predict-routines.mjs --matchday <N>` will now include it.
 - The admin dropdown now has `Przełożony` (POSTPONED) instead of the old
   `Anulowany` (CANCELLED) option.
 

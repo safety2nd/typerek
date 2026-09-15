@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { Fixture } from "@/lib/types";
-import { formatDate } from "@/lib/format";
+import { toWarsawInputValue, warsawInputValueToUtc } from "@/lib/format";
 
 export function FixtureEditList({ fixtures }: { fixtures: Fixture[] }) {
   return (
@@ -22,6 +22,7 @@ function FixtureEditRow({ fixture }: { fixture: Fixture }) {
     fixture.away_score != null ? String(fixture.away_score) : "",
   );
   const [status, setStatus] = useState(fixture.status);
+  const [kickoff, setKickoff] = useState(toWarsawInputValue(fixture.utc_date));
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -31,13 +32,23 @@ function FixtureEditRow({ fixture }: { fixture: Fixture }) {
     setErr(null);
     const h = home === "" ? null : Number(home);
     const a = away === "" ? null : Number(away);
+    const utcDate = warsawInputValueToUtc(kickoff);
+    if (!utcDate) {
+      setErr("Podaj datę i godzinę");
+      return;
+    }
     const finalStatus = overrideStatus ?? status;
     if (overrideStatus) setStatus(overrideStatus);
     startTransition(async () => {
       const res = await fetch(`/api/admin/fixtures/${fixture.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ home_score: h, away_score: a, status: finalStatus }),
+        body: JSON.stringify({
+          home_score: h,
+          away_score: a,
+          status: finalStatus,
+          utc_date: utcDate,
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -51,9 +62,13 @@ function FixtureEditRow({ fixture }: { fixture: Fixture }) {
 
   return (
     <div className="rounded border border-zinc-200 dark:border-zinc-800 p-3 flex flex-wrap items-center gap-3 text-sm">
-      <div className="text-xs text-zinc-500 w-32">
-        {formatDate(fixture.utc_date)}
-      </div>
+      <input
+        aria-label="data i godzina meczu"
+        type="datetime-local"
+        value={kickoff}
+        onChange={(e) => setKickoff(e.target.value)}
+        className="w-48 rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1 text-xs text-zinc-500"
+      />
       <div className="flex-1 font-medium">
         {fixture.home_team} v {fixture.away_team}
       </div>
